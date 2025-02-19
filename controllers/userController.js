@@ -409,7 +409,7 @@ exports.getShop = async (req, res) => {
         sortOption = {};
     }
     
-  
+         
     if(search){
       query.$or = [
         { name: { $regex: search, $options: "i" } },  
