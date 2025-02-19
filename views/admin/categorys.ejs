@@ -1,0 +1,164 @@
+<%- include('../admin/partials/header') %>
+      <!--  Header End -->
+      <div class="container-fluid">
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2>Category Management</h2>
+                <a href="/admin/addcategorys" class="btn btn-success">+ Add Category</a>
+            </div>
+            <div class="card">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>NO</th>
+                            <th>Category</th>
+                            <th>Category Description</th>
+                            <th>Created At</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categoryTableBody">
+                        <% categorys.forEach((category, index) => { %>
+                          <tr id="categoryRow-<%= category._id %>">
+                            <td><%= index + 1 %></td>
+                            <td class="category-name"><%= category.name %></td>
+                            <td class="category-description"><%= category.description %></td>
+                            <td><%= category.createdAt.toISOString().split('T')[0] %></td>
+                            <td>
+                              <span class="<%= category.isListed ? 'text-success' : 'text-danger' %>">
+                                <%= category.isListed ? 'Active' : 'Hidden' %>
+                              </span>
+                            </td>
+                            <td>
+                              <!-- Edit Button -->
+                              <button class="btn btn-sm btn-primary edit-category-btn"
+                                data-id="<%= category._id %>"
+                                data-name="<%= category.name %>"
+                                data-description="<%= category.description %>">
+                                Edit
+                              </button>
+
+                              <!-- Toggle Hide/Restore Button -->
+                              <button class="btn btn-sm <%= category.isListed ? 'btn-danger' : 'btn-success' %> toggle-category-btn"
+                                data-id="<%= category._id %>">
+                                <%= category.isListed ? 'Hide' : 'Restore' %>
+                              </button>
+                            </td>
+                          </tr>
+                        <% }) %>
+                      </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // Toggle Hide/Restore Category
+      document.querySelectorAll(".toggle-category-btn").forEach((button) => {
+        button.addEventListener("click", async function () {
+          const categoryId = this.getAttribute("data-id");
+          const action = this.textContent.trim() === "Hide" ? "hide" : "restore";
+
+          const confirmAction = await Swal.fire({
+            title: "Are you sure?",
+            text: `Do you want to ${action} this category?`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Yes",
+            cancelButtonText: "No",
+          });
+
+          if (!confirmAction.isConfirmed) return;
+
+          try {
+            const response = await fetch(`/admin/softDeleteCategory/${categoryId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+              // Update button and text dynamically
+              this.classList.toggle("btn-danger");
+              this.classList.toggle("btn-success");
+              this.textContent = result.isListed ? "Hide" : "Restore";
+
+              // Update status text
+              const statusCell = this.closest("tr").querySelector("td:nth-child(5) span");
+              statusCell.textContent = result.isListed ? "Active" : "Hidden";
+              statusCell.classList.toggle("text-success");
+              statusCell.classList.toggle("text-danger");
+
+              Swal.fire("Success!", result.message, "success");
+            } else {
+              Swal.fire("Error!", result.message || "Something went wrong", "error");
+            }
+          } catch (error) {
+            Swal.fire("Error!", "Network error occurred!", "error");
+          }
+        });
+      });
+
+      // Edit Category
+      document.querySelectorAll(".edit-category-btn").forEach((button) => {
+        button.addEventListener("click", async function () {
+          const categoryId = this.getAttribute("data-id");
+          const currentName = this.getAttribute("data-name");
+          const currentDescription = this.getAttribute("data-description");
+
+          const { value: formValues } = await Swal.fire({
+            title: "Edit Category",
+            html: `
+              <input id="swal-category-name" class="swal2-input" value="${currentName}" placeholder="Category Name">
+              <input id="swal-category-description" class="swal2-input" value="${currentDescription}" placeholder="Category Description">
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: "Update",
+            preConfirm: () => {
+              return {
+                name: document.getElementById("swal-category-name").value.trim(),
+                description: document.getElementById("swal-category-description").value.trim(),
+              };
+            },
+          });
+
+          if (!formValues || !formValues.name) return;
+
+          try {
+            const response = await fetch(`/admin/editCategory/${categoryId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(formValues),
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+              // Update UI without reloading
+              const row = document.getElementById(`categoryRow-${categoryId}`);
+              row.querySelector(".category-name").textContent = formValues.name;
+              row.querySelector(".category-description").textContent = formValues.description;
+
+              Swal.fire("Success!", "Category updated successfully!", "success");
+            } else {
+              Swal.fire("Error!", result.message || "Something went wrong", "error");
+            }
+          } catch (error) {
+            Swal.fire("Error!", "Network error occurred!", "error");
+          }
+        });
+      });
+    });
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
+  <%- include('../admin/partials/footer') %>

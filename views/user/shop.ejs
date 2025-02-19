@@ -1,0 +1,468 @@
+<%- include ("../user/partials/header")%>
+    <!-- Header part end-->
+
+    <!--================Home Banner Area =================-->
+    <!-- breadcrumb start-->
+    <section class="breadcrumb breadcrumb_bg">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="breadcrumb_iner">
+                        <div class="breadcrumb_iner_item">
+                            <h2>Shop Category</h2>
+                            <p>Home <span>-</span> Shop Category</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- breadcrumb start-->
+
+    <!--================Category Product Area =================-->
+    <section class="cat_product_area section_padding">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-3">
+                    <div class="left_sidebar_area">
+                        <aside class="left_widgets p_filter_widgets">
+                            <div class="l_w_title">
+                                <h3>Filter Categories</h3>
+                            </div>
+                            <div class="widgets_inner">
+                                <ul class="list">
+                                    <% categorys.forEach(cat=> { %>
+                                        <li>
+                                            <a class="category" data-category="<%= cat.name %>"
+                                                onclick="categoryName('<%=cat._id%>')">
+                                                <%= cat.name %>
+                                            </a>
+
+                                        </li>
+                                        <% }) %>
+                                </ul>
+                            </div>
+                        </aside>
+
+
+                        <aside class="left_widgets p_filter_widgets">
+                            <div class="l_w_title">
+                                <h3>Sort here!</h3>
+                            </div>
+                            <div class="widgets_inner">
+                                <ul class="list">
+                                    <li>
+                                        <a sort-method="price-Assending" class="sort">Price: Low to High</a>
+                                    </li>
+                                    <li>
+                                        <a sort-method="price-Dessending" class="sort">Price: High to Low</a>
+                                    </li>
+                                    <li class="active">
+                                        <a sort-method="letter-Assending" class="sort">aA - zZ</a>
+                                    </li>
+                                    <li>
+                                        <a sort-method="letter-dessending" class="sort">zZ - aA</a>
+                                    </li>
+
+                                </ul>
+
+                            </div>
+                        </aside>
+
+                        <aside class="left_widgets p_filter_widgets">
+                            <div class="l_w_title">
+                                <h3>Color Filter</h3>
+                            </div>
+                            <div class="widgets_inner">
+                                <ul class="list">
+                                    <li>
+                                        <a href="#">Black</a>
+                                    </li>
+                                    <li>
+                                        <a href="#">Black Leather</a>
+                                    </li>
+                                    <li class="active">
+                                        <a href="#">Black with red</a>
+                                    </li>
+                                    <li>
+                                        <a href="#">Gold</a>
+                                    </li>
+                                    <li>
+                                        <a href="#">Spacegrey</a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </aside>
+
+                        <aside class="left_widgets p_filter_widgets price_rangs_aside">
+                            <div class="l_w_title">
+                                <h3>Price Filter</h3>
+                            </div>
+                            <div class="widgets_inner">
+                                <div class="range_item">
+                                    <!-- Slider input for price range -->
+                                    <div id="slider-range"></div>
+                                    <div class="d-flex">
+                                        <div class="price_text">
+                                            <p>Price :</p>
+                                        </div>
+                                        <div class="price_value d-flex justify-content-center">
+                                            <input type="text" class="js-input-from" id="amount-from" readonly />
+                                            <span>to</span>
+                                            <input type="text" class="js-input-to" id="amount-to" readonly />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </aside>
+                    </div>
+                </div>
+                <div class="col-lg-9">
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="product_top_bar d-flex justify-content-between align-items-center">
+                                <div class="single_product_menu">
+                                    <% if(totalProducts>0){%>
+                                        <p><span>
+                                                <%=totalProducts%>
+                                            </span> Products Found</p>
+                                        <% }else{%>
+                                            <p>Sorry! <span>
+                                                    <%=totalProducts%>
+                                                </span>Products found</p>
+                                            <% }%>
+
+                                </div>
+
+
+
+                                <div class="single_product_menu d-flex">
+                                    <div class="input-group">
+                                        <!-- Search Icon -->
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text"><i class="ti-search"></i></span>
+                                        </div>
+                                
+                                        <!-- Search Input -->
+                                        <input type="text" class="form-control" id="searchInput" placeholder="Search here..."
+                                            aria-describedby="inputGroupPrepend" title="Type to search">
+                                
+                                        <!-- Clear Icon (Button for Better Usability) -->
+                                        <div class="input-group-append">
+                                            <button class="btn btn-light clear-icon" id="clearSearch" type="button" title="Clear search">
+                                                <i class="ti-close"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Container to Update Products Dynamically -->
+                                <div id="productContainer">
+                                    <!-- Products will be dynamically updated here -->
+                                </div>
+                                
+                                
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row align-items-center latest_product_inner">
+                        <% products.forEach(product=> { %>
+                            <div class="col-lg-4 col-sm-6">
+                                <div class="single_product_item" onclick="viewProduct('<%= product._id %>')">
+                                    <!-- Display first image of the product -->
+                                    <img src="<%= product.images[0] %>" alt="<%= product.name %>">
+
+                                    <div class="single_product_text">
+                                        <h4>
+                                            <%= product.name %>
+                                        </h4>
+
+                                        <!-- Show variants -->
+                                        <% if (product.variants.length> 0) { %>
+                                            <p>Available in:</p>
+                                            <ul>
+                                                <% product.variants.forEach(variant=> { %>
+
+                                                    <li style="color:blueviolet;">
+                                                        price: <%= product.price %>
+                                                    </li>
+                                                    <% }) %>
+                                            </ul>
+                                            <% } else { %>
+                                                <p>No variants available</p>
+                                                <% } %>
+
+                                                    <a href="#" class="add_cart">+ add to cart<i
+                                                            class="ti-heart"></i></a>
+                                    </div>
+                                </div>
+                            </div>
+                            <% }) %>
+
+                                <!-- Pagination Section -->
+                                <div class="col-lg-12">
+                                    <div class="pagination">
+                                        <nav aria-label="Page navigation example">
+                                            <ul class="pagination justify-content-center">
+                                                <% if (currentPage> 1) { %>
+                                                    <li class="page-item">
+                                                        <a class="page-link" href="/shop?page=<%= currentPage - 1 %>"
+                                                            aria-label="Previous">
+                                                            <i class="ti-angle-double-left"></i>
+                                                        </a>
+                                                    </li>
+                                                    <% } %>
+
+                                                        <% for (let i=1; i <=totalPages; i++) { %>
+                                                            <li
+                                                                class="page-item <%= i === currentPage ? 'active' : '' %>">
+                                                                <a class="page-link" href="/shop?page=<%= i %>">
+                                                                    <%= i %>
+                                                                </a>
+                                                            </li>
+                                                            <% } %>
+
+                                                                <% if (currentPage < totalPages) { %>
+                                                                    <li class="page-item">
+                                                                        <a class="page-link"
+                                                                            href="/shop?page=<%= currentPage + 1 %>"
+                                                                            aria-label="Next">
+                                                                            <i class="ti-angle-double-right"></i>
+                                                                        </a>
+                                                                    </li>
+                                                                    <% } %>
+                                            </ul>
+                                        </nav>
+                                    </div>
+                                </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
+    <!--================End Category Product Area =================-->
+
+    <!-- product_list part start-->
+    <section class="product_list best_seller">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-12">
+                    <div class="section_tittle text-center">
+                        <h2>Best Sellers <span>shop</span></h2>
+                    </div>
+                </div>
+            </div>
+            <div class="row align-items-center justify-content-between">
+                <div class="col-lg-12">
+                    <div class="best_product_slider owl-carousel">
+                        <div class="single_product_item">
+                            <img src="img/product/product_1.png" alt="">
+                            <div class="single_product_text">
+                                <h4>Quartz Belt Watch</h4>
+                                <h3>$150.00</h3>
+                            </div>
+                        </div>
+                        <div class="single_product_item">
+                            <img src="img/product/product_2.png" alt="">
+                            <div class="single_product_text">
+                                <h4>Quartz Belt Watch</h4>
+                                <h3>$150.00</h3>
+                            </div>
+                        </div>
+                        <div class="single_product_item">
+                            <img src="img/product/product_3.png" alt="">
+                            <div class="single_product_text">
+                                <h4>Quartz Belt Watch</h4>
+                                <h3>$150.00</h3>
+                            </div>
+                        </div>
+                        <div class="single_product_item">
+                            <img src="img/product/product_4.png" alt="">
+                            <div class="single_product_text">
+                                <h4>Quartz Belt Watch</h4>
+                                <h3>$150.00</h3>
+                            </div>
+                        </div>
+                        <div class="single_product_item">
+                            <img src="img/product/product_5.png" alt="">
+                            <div class="single_product_text">
+                                <h4>Quartz Belt Watch</h4>
+                                <h3>$150.00</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- product_list part end-->
+
+
+    <script>
+
+        // document.getElementById("searchInput").addEventListener('keydown',function (event){
+        //     if(event.key ==='Enter' || event.keyCode ===13){
+        //         event.preventDefault();
+
+        //         const value = this.value;
+        //         const params = new URLSearchParams(window.location.search);
+        //         params.set("search", value);
+        //         params.set("page", 1);
+        //         window.history.pushState({}, "", `${window.location.pathname}?${params}`);
+
+        //         fetch(`/shop?${params}`)
+        //             .then(response => response.text())
+        //             .then(html => {
+        //                 document.body.innerHTML = html;
+        //             })
+        //             .catch(error => console.error("Error fetching products:", error));
+            
+              
+        //     }
+        // })
+
+        document.addEventListener("click", function (event) {
+
+            if (event.target.classList.contains("sort")) {
+                event.preventDefault();
+
+                let selectedSort = event.target.getAttribute('sort-method');
+
+                const params = new URLSearchParams(window.location.search);
+                params.set("sort", selectedSort);
+                params.set("page", 1);
+                window.history.pushState({}, "", `${window.location.pathname}?${params}`);
+
+                fetch(`/shop?${params}`)
+                    .then(response => response.text())
+                    .then(html => {
+                        document.body.innerHTML = html;
+                    })
+                    .catch(error => console.error("Error fetching products:", error));
+            }
+        });
+
+
+
+
+
+
+
+
+
+
+        function categoryName(category) {
+            const params = new URLSearchParams(window.location.search);
+            params.set("category", category);
+            params.set("page", 1); // Reset pagination to page 1 when filtering
+
+            window.history.pushState({}, "", `${window.location.pathname}?${params}`);
+
+            // Fetch filtered products
+            fetch(`/shop?${params}`)
+                .then(response => response.text())
+                .then(html => {
+                    document.body.innerHTML = html;
+                })
+                .catch(error => console.error("Error fetching products:", error));
+        }
+
+
+        function viewProduct(productId) {
+            window.location.href = `/user/product-details/${productId}`;
+        }
+
+
+        // document.getElementById('clearSearch').addEventListener('click', function () {
+        //     document.querySelector('.form-control').value = '';
+        //     const params = new URLSearchParams(window.location.search);
+        //     params.delete('search');
+        //     params.set('page',1);
+        //     window.location.href=`${window.location.pathname}?${params}`
+        //     this.style.display = 'none'; 
+
+        //     fetch(`/shop?${params}`)
+        //         .then(response => response.text())
+        //         .then(html => {
+        //             document.body.innerHTML = html;
+        //         })
+        //         .catch(error => console.error("Error fetching products:", error));
+        // });
+
+        document.querySelector('.form-control').addEventListener('input', function () {
+            const clearIcon = document.getElementById('clearSearch');
+            if (this.value.length > 0) {
+                clearIcon.style.display = 'block'; 
+            } else {
+                clearIcon.style.display = 'none'; 
+            }
+        });
+
+
+
+
+
+
+
+
+
+
+        document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("searchInput");
+    const clearSearch = document.getElementById("clearSearch");
+    const productContainer = document.getElementById("productContainer");
+
+    let debounceTimer; // Prevents too many API calls
+
+    // ✅ Keeps search term in input field after refresh
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("search")) {
+        searchInput.value = params.get("search");
+    }
+
+    // ✅ Function to Fetch and Update Products
+    function fetchProducts(searchQuery) {
+        params.set("search", searchQuery);
+        params.set("page", 1); // Reset pagination
+
+        window.history.pushState({}, "", `${window.location.pathname}?${params}`);
+
+        fetch(`/shop?${params}`)
+            .then(response => response.text())
+            .then(html => {
+                const newContent = new DOMParser().parseFromString(html, "text/html")
+                    .querySelector("#productContainer").innerHTML;
+                productContainer.innerHTML = newContent;
+            }).then(()=>{
+                window.location.reload();
+            })
+            .catch(error => console.error("Error fetching products:", error));
+    }
+
+    // ✅ Dynamic Search with Debouncing
+    searchInput.addEventListener("input", function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            fetchProducts(this.value.trim());
+        }, 300); // Adjust debounce time if needed
+    });
+
+    // ✅ Clear Search Button
+    clearSearch.addEventListener("click", function () {
+        searchInput.value = "";
+        params.delete("search");
+        window.history.pushState({}, "", `${window.location.pathname}?${params}`);
+
+        fetchProducts(""); // Fetch all products when cleared
+    });
+});
+
+
+
+
+    </script>
+    <!--::footer_part start::-->
+    <%- include ("../user/partials/footer")%>

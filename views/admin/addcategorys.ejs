@@ -1,0 +1,65 @@
+<%- include('../admin/partials/header') %>
+      <!--  Header End -->
+      <div class="container-fluid">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title fw-semibold mb-4">Category Management</h5>
+            <div class="card mb-0">
+              <div class="card-body">
+                <form id="addCategoryForm">
+                  <fieldset>
+                    <legend class="text-center">Add New Category</legend>
+                    <div class="mb-3">
+                      <label for="categoryName" class="form-label">Category Name</label>
+                      <input type="text" id="categoryName" class="form-control" name="name" placeholder="Category Name" required>
+                    </div>
+                    <div class="mb-3">
+                      <label for="categoryDescription" class="form-label">Description</label>
+                      <input type="text" id="categoryDescription" class="form-control" name="description" placeholder="Leave the Description" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Add</button>
+                    <button type="submit" class="btn btn-danger">Cancel</button>
+                  </fieldset>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+        <a href="/admin/categorys" >Back</a>
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+      <script>
+        document.getElementById("addCategoryForm").addEventListener("submit", async function (event) {
+            event.preventDefault();
+        
+            const name = document.getElementById("categoryName").value.trim();
+            const description = document.getElementById("categoryDescription").value.trim();
+        
+            if (!name) {
+                Swal.fire("Error!", "Category name is required!", "error");
+                return;
+            }
+        
+            try {
+                const response = await fetch("/admin/addcategorys", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name, description })
+                });
+        
+                const result = await response.json();
+        
+                if (response.ok) {
+                    Swal.fire("Success!", "Category added successfully!", "success").then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire("Error!", result.message || "Something went wrong", "error");
+                }
+            } catch (error) {
+                Swal.fire("Error!", "Network error occurred!", "error");
+            }
+        });
+        </script>
+   
+  <%- include('../admin/partials/footer') %>

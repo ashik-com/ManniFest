@@ -1,0 +1,133 @@
+<%- include ("../user/partials/header")%>
+
+
+
+    <!--================login_part Area =================-->
+    <section class="login_part padding_top">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6 col-md-6">
+                    <div class="login_part_text text-center">
+                        <div class="login_part_text_iner">
+                            <h2>New to our Shop?</h2>
+                            <p>There are advances being made in science and technology
+                                everyday, and a good example of this is the</p>
+                            <a href="/user/verification" class="btn_3">Create an Account</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 col-md-6">
+                    <div class="login_part_form">
+                        <div class="login_part_form_iner">
+                            <h3>Welcome Back ! <br>
+                                Please Login now</h3>
+                            <form class="row contact_form" id="login-form" novalidate="novalidate">
+                                <div class="col-md-12 form-group p_star">
+                                    <input type="email" class="form-control" id="email" name="email" value=""
+                                        placeholder="Email">
+                                </div>
+                                <div class="col-md-12 form-group p_star">
+                                    <input type="password" class="form-control" id="password" name="password" value=""
+                                        placeholder="Password">
+                                </div>
+                                <div class="col-md-12 form-group">
+                                    <div class="creat_account d-flex align-items-center">
+
+                                    </div>
+                                    <button type="submit" class="btn_3">
+                                        log in
+                                    </button>
+                                    <a class="lost_pass" href="/user/forgot-password">forget password?</a>
+                                </div>
+                                <div class="col-md-12 form-group text-center">
+                                    <p>or</p>
+                                    <a href="/user/auth/google" class="btn_3 google-btn">
+                                        <img src="/images/Google__G__logo.svg.png" class="google-logo">
+                                        Sign in with Google
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        document.getElementById("login-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value.trim();
+
+            function isValidEmail(email) {
+                const emailRegex = /^(?!.*\.\.)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+                return emailRegex.test(email);
+            }
+
+            if (!email || !isValidEmail(email)) {
+                Swal.fire({
+                    icon: "warning",
+                    title: "Invalid email",
+                    text: "Please Enter a valid email.",
+                });
+                return;
+
+            }
+
+            if (!password || password.length < 6) {
+                Swal.fire({
+                    icon: "warning",
+                    title: "Weak Password",
+                    text: "Password must be at least 6 characters long!",
+                });
+                return;
+            }
+
+
+
+            try {
+                const response = await fetch("/user/login", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    Swal.fire({
+                        icon: "success",
+                        title: "Login Successful!",
+                        text: "Redirecting to Home...",
+                    }).then(() => {
+                        window.location.href = "/";
+                    });
+                } else {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Login Failed",
+                        text: data.message || "Something went wrong, please try again!",
+                    });
+                }
+
+
+
+            } catch (error) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Server Error",
+                    text: "Could not connect to the server. Try again later.",
+                });
+
+            }
+
+        })
+
+
+
+
+    </script>
+    <%- include ("../user/partials/footer")%>

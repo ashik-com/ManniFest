@@ -1,0 +1,96 @@
+<%- include('../admin/partials/header') %>
+      <!--  Header End -->
+      <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>Product Management</h2>
+            <a href="/admin/AddProduct" class="btn btn-success">+ Add Product</a>
+        </div>
+            <table class="table  table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Product Image</th>
+                        <th>Product Name</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Available Colors</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% products.forEach(product => { %>
+                        <tr>
+                            <td>
+                                <% if (product.images && product.images.length > 0) { %>
+                                    <img src="<%= product.images[0] %>" class="rounded" alt="Product" width="50">
+                                <% } else { %>
+                                    <img src="https://via.placeholder.com/50" class="rounded" alt="No Image">
+                                <% } %>
+                            </td>
+                            <td><%= product.name %></td>
+                            <td><%= product.category ? product.category.name : 'Uncategorized' %></td>
+                            
+                            <td>
+                                <% if (product.variants && product.variants.length > 0) { %>
+                                    <% product.variants.forEach(variant => { %>
+                                        $<%= variant.price %> <br>
+                                    <% }) %>
+                                <% } else { %>
+                                    <span class="text-muted">No Variant</span>
+                                <% } %>
+                            </td>
+                
+                            <td>
+                                <% let totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0); %>
+                                <%= totalStock %>
+                            </td>
+                
+                            <td>
+                                <% if (product.variants && product.variants.length > 0) { %>
+                                    <% product.variants.forEach(variant => { %>
+                                        <span class="badge" style="background-color:<%= variant.color %>;">
+                                            <%= variant.color %>
+                                        </span>
+                                    <% }) %>
+                                <% } else { %>
+                                    <span class="text-muted">No colors</span>
+                                <% } %>
+                            </td>
+                
+                            <td>
+                                <button class="btn btn-primary btn-sm edit-product"   data-id="<%= product._id %>">Edit</button>
+                                <button class="btn btn-danger btn-sm">Delete</button>
+                                <button class="btn btn-primary btn-sm">Add Offer</button>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+                
+            </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded",function () {
+        document.querySelectorAll(".edit-product").forEach(button => {
+            button.addEventListener("click",function () {
+                const productId = this.getAttribute("data-id")
+
+                if (productId) {
+                window.location.href = `/admin/editproduct/${productId}`;
+            } else {
+                console.error("Product ID not found!");
+            }
+            
+            })
+            
+        });
+    })
+
+</script>
+
+</body>
+<%- include('../admin/partials/footer') %>
