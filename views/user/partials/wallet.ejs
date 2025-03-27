@@ -1,0 +1,64 @@
+
+<!-- Wallet Section -->
+<div class="container mt-4">
+    <h2 class="text-center mb-4">💰 My Wallet</h2>
+
+    <% if (wallet) { %>
+        <!-- Wallet Balance Card -->
+        <div class="wallet-card text-center mb-3">
+            <h4>Wallet Balance</h4>
+            <h2 id="walletBalance">₹<%= wallet.balance.toFixed(2) %></h2>
+        </div>
+
+        <!-- Add Money Button -->
+        <div class="text-center mb-4">
+            <button id="addMoneyBtn" class="btn btn-success" aria-label="Add Money">
+                ➕ Add Money
+            </button>
+        </div>
+
+        <!-- Transaction History -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                Transaction History
+            </div>
+            <ul class="list-group list-group-flush transaction-list">
+                <% if (wallet.transactions.length === 0) { %>
+                    <li class="list-group-item text-center">No transactions found</li>
+                <% } else { %>
+                    <% wallet.transactions.forEach(transaction => { %>
+                        <li class="list-group-item d-flex justify-content-between 
+                            <%= transaction.type === 'credit' ? 'text-success' : 'text-danger' %>">
+                            <span><%= transaction.description %> (<%= new Date(transaction.date).toLocaleDateString() %>)</span>
+                            <strong><%= transaction.type === 'credit' ? '+' : '-' %>₹<%= transaction.amount.toFixed(2) %></strong>
+                        </li>
+                    <% }) %>
+                <% } %>
+            </ul>
+        </div>
+    <% } else { %>
+        <!-- No Wallet Found -->
+        <div class="text-center mt-5">
+            <h4 class="text-muted">😔 You don’t have a wallet yet.</h4>
+            <button id="addMoneyBtn" class="btn btn-primary mt-3" aria-label="Create and Add Money">
+                Create & Add Money
+            </button>
+        </div>
+    <% } %>
+</div>
+
+<!-- Wallet Page Styles -->
+<style>
+    .wallet-card {
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        background: linear-gradient(to right, #007bff, #00c6ff);
+        color: white;
+    }
+    .transaction-list {
+        max-height: 50vh; /* Updated to responsive height */
+        overflow-y: auto;
+    }
+</style>
+

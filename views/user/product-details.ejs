@@ -6,94 +6,125 @@
         <div class="col-lg-8">
           <div class="breadcrumb_iner">
             <div class="breadcrumb_iner_item">
-              <h2>Shop Single</h2>
-              <p>Home <span>-</span> Shop Single</p>
+              <h2>Product Details</h2>
+              <p>Home <span>-</span> Shop Category</p>
             </div>
           </div>
         </div>
       </div>
     </div>
   </section>
-  <!-- breadcrumb start-->
-  <!--================End Home Banner Area =================-->
 
-  <!--================Single Product Area =================-->
   <div class="product_image_area section_padding">
-    <div class="container">
-      <div class="row s_product_inner justify-content-between">
-        <div class="col-lg-7 col-xl-7">
-          <div class="product-container">
-            <div class="thumbnails">
-                <img src="<%=product.images[1]%>" alt="Thumbnail 1" onclick="changeImage(this)">
-                <img src="<%=product.images[2]%>" alt="Thumbnail 2" onclick="changeImage(this)">
-                <img src="<%=product.images[3]%>" alt="Thumbnail 3" onclick="changeImage(this)">
-                <img src="<%=product.images[0]%>" alt="Thumbnail 4" onclick="changeImage(this)">
-            </div>
-            <div class="main-image image-zoom-container">
-                <img id="mainImg" src="<%=product.images[0]%>" alt="Main Product Image" class="zoom-image">
-            </div>
-        </div>
-        </div>
-        <div class="col-lg-5 col-xl-4">
-          <div class="s_product_text">
-            <h3><%= product.name%></h3>
-            <h2><%= varianta.price%></h2>
-            <ul class="list">
-              <li>
-                <a class="active" href="#">
-                  <span>Category</span> : <%=category.name%></a>
-              </li>
-              <li>
-                <a href="#"> <span>Availibility</span> : <%= varianta.stock%></a>
-              </li>
-            </ul>
-            <p>
-              <%= product.description%>
-            </p>
-            <div class="picker-container">
-              <h4>Available Colors:</h4>
-              <div class="color-picker">
-                <% if (product.variants ) { %>
-                  <% product.variants.forEach(variant => { %>
-                      <div class="color-option" style="background-color:<%= variant.color %>;"  onclick="selectColor(this)">
-                      </div>
-                  <% }) %>
-              <% } else { %>
-                  <div class="text-muted">No colors</div>
-              <% } %>
-               
-              </div>
+  <div class="container">
+    <div class="row s_product_inner justify-content-between">
+      <!-- Left Column: Product Images -->
+      <div class="col-lg-7 col-xl-7">
+        <div class="product-container">
+          <div class="thumbnails">
+            <% if (product?.variants?.[0]?.images?.length > 1) { %>
+              <% product.variants[0].images.forEach((image, index) => { %>
+                <img src="<%= image %>" alt="Thumbnail <%= index + 1 %>" class="thumbnail" data-index="<%= index %>">
+              <% }) %>
+            <% } %>
           </div>
-           
-            <div class="card_area d-flex justify-content-between align-items-center">
-              
-              <div class="product_count">
-                <span class="inumber-decrement"> <i class="ti-minus"></i></span>
-                <input class="input-number" type="text" value="1" min="0" max="<%=varianta.stock%>">
-                <span class="number-increment"> <i class="ti-plus"></i></span>
-              </div>
-              <a href="#" class="btn_3">add to cart</a>
-              <a href="#" class="like_us"> <i class="ti-heart"></i> </a>
+          <div class="main-image image-zoom-container">
+            <img id="mainImg"
+              src="<%= product?.variants?.[0]?.images?.length ? product.variants[0].images[0] : '/default-image.jpg' %>"
+              alt="<%= product.name %> Image" class="zoom-image">
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Product Details -->
+      <div class="col-lg-5 col-xl-4">
+        <div class="s_product_text">
+          <!-- Rating -->
+          <div class="product-rating">
+            <p>
+              <span>Rating: </span>
+              <% let avgRating = typeof averageRating !== 'undefined' ? averageRating : 0; %>
+              <% let totalRatingCount = typeof totalRatings !== 'undefined' ? totalRatings : 0; %>
+              <% for (let i = 0; i < Math.floor(avgRating); i++) { %>
+                ⭐
+              <% } %>
+              <% if (avgRating % 1 >= 0.5) { %>
+                ⭐
+              <% } %>
+              (<%= totalRatingCount %> Ratings)
+            </p>
+          </div>
+
+          <h3><%= product.name || 'Unnamed Product' %></h3>
+          <div class="price-info">
+            <h2 id="priceDisplay">
+              ₹<%= product.hasOffer ? product.discountedPrice : product.originalPrice %>
+              <% if (product.hasOffer) { %>
+                <span class="original-price">₹<%= product.originalPrice %></span>
+                <span class="discount-percentage">(<%= product.discountPercentage %>% OFF)</span>
+              <% } %>
+            </h2>
+          </div>
+          <ul class="list">
+            <li>
+              <span>Category</span> : <%= category?.name || 'N/A' %>
+            </li>
+            <li>
+              <span>Availability</span> :
+              <span id="stockStatus">
+                <%= product?.variants?.length && product.variants[0]?.stock > 0 ? product.variants[0].stock + ' in stock' : 'Out of stock' %>
+              </span>
+            </li>
+          </ul>
+          <p><%= product.description || 'No description available.' %></p>
+
+          <!-- Color Picker -->
+          <div class="picker-container">
+            <h4>Available Colors:</h4>
+            <div class="color-picker">
+              <% (colors || []).forEach(color => { %>
+                <div class="color-option" style="background-color: <%= color %>;" data-color="<%= color %>"
+                  data-product-id="<%= product._id %>"></div>
+              <% }) %>
             </div>
+          </div>
+
+          <!-- Size Picker -->
+          <div class="size-container">
+            <h4>Select Size:</h4>
+            <div id="sizeOptions" class="size-picker">
+              <div class="text-muted">Please select a color first</div>
+            </div>
+          </div>
+          <p id="sizeError" style="color: red; margin-top: 5px;"></p>
+
+          <!-- Action Buttons -->
+          <div class="card_area d-flex justify-content-between align-items-center">
+            <div class="product_count">
+              <span class="inumber-decrement"> <i class="ti-minus"></i></span>
+              <input class="input-number" type="text" value="1" min="1"
+                max="<%= product?.variants?.length && product.variants[0]?.stock > 0 ? product.variants[0].stock : 0 %>"
+                id="quantity">
+              <span class="number-increment"> <i class="ti-plus"></i></span>
+            </div>
+            <button class="btn_3" data-product-id="<%= product._id %>">Add to Cart</button>
+            <a href="javascript:void(0);" class="like_us" data-product-id="<%= product._id %>">
+              <i class="ti-heart"></i>
+            </a>
           </div>
         </div>
       </div>
     </div>
   </div>
-  <!--================End Single Product Area =================-->
+</div>
 
-  <!--================Product Description Area =================-->
   <section class="product_description_area">
     <div class="container">
       <ul class="nav nav-tabs" id="myTab" role="tablist">
-        
+
         <li class="nav-item">
           <a class="nav-link" id="profile-tab" data-toggle="tab" href="#profile" role="tab" aria-controls="profile"
             aria-selected="false">Specification</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" id="contact-tab" data-toggle="tab" href="#contact" role="tab" aria-controls="contact"
-            aria-selected="false">Comments</a>
         </li>
         <li class="nav-item">
           <a class="nav-link active" id="review-tab" data-toggle="tab" href="#review" role="tab" aria-controls="review"
@@ -101,173 +132,57 @@
         </li>
       </ul>
       <div class="tab-content" id="myTabContent">
-        
+
         <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
           <div class="table-responsive">
             <table class="table">
               <tbody>
-                <tr>
-                  <td>
-                    <h5>Sleeve Type</h5>
-                  </td>
-                  <td>
-                    <h5><%= product.name%></h5>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <h5>Height</h5>
-                  </td>
-                  <td>
-                    <h5>508mm</h5>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <h5>Depth</h5>
-                  </td>
-                  <td>
-                    <h5>85mm</h5>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <h5>Weight</h5>
-                  </td>
-                  <td>
-                    <h5>52gm</h5>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <h5>Quality checking</h5>
-                  </td>
-                  <td>
-                    <h5>yes</h5>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <h5>Freshness Duration</h5>
-                  </td>
-                  <td>
-                    <h5>03days</h5>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <h5>When packeting</h5>
-                  </td>
-                  <td>
-                    <h5>Without touch of hand</h5>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <h5>Each Box contains</h5>
-                  </td>
-                  <td>
-                    <h5>60pcs</h5>
-                  </td>
-                </tr>
+                <% let Specification=product.specifications; %>
+                  <tr>
+                    <td>
+                      <h5>Sleeve Type</h5>
+                    </td>
+                    <td>
+
+                      <h5>
+                        <%=Specification.sleeveType %>
+                      </h5>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <h5>Fit-Type</h5>
+                    </td>
+                    <td>
+                      <h5>
+                        <%=Specification.fitType %>
+                          </< /h5>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <h5>Patten</h5>
+                    </td>
+                    <td>
+                      <h5>
+                        <%=Specification.pattern %>
+                          </< /h5>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <h5>Material</h5>
+                    </td>
+                    <td>
+                      <h5>
+                        <%=Specification.meterial %>
+                      </h5>
+                      </h5>
+                    </td>
+                  </tr>
+
               </tbody>
             </table>
-          </div>
-        </div>
-        <div class="tab-pane fade" id="contact" role="tabpanel" aria-labelledby="contact-tab">
-          <div class="row">
-            <div class="col-lg-6">
-              <div class="comment_list">
-                <div class="review_item">
-                  <div class="media">
-                    <div class="d-flex">
-                      <img src="img/product/single-product/review-1.png" alt="" />
-                    </div>
-                    <div class="media-body">
-                      <h4>Blake Ruiz</h4>
-                      <h5>12th Feb, 2017 at 05:56 pm</h5>
-                      <a class="reply_btn" href="#">Reply</a>
-                    </div>
-                  </div>
-                  <p>
-                    Lorem ipsum dolor sit amet, consectetur adipisicing elit,
-                    sed do eiusmod tempor incididunt ut labore et dolore magna
-                    aliqua. Ut enim ad minim veniam, quis nostrud exercitation
-                    ullamco laboris nisi ut aliquip ex ea commodo
-                  </p>
-                </div>
-                <div class="review_item reply">
-                  <div class="media">
-                    <div class="d-flex">
-                      <img src="img/product/single-product/review-2.png" alt="" />
-                    </div>
-                    <div class="media-body">
-                      <h4>Blake Ruiz</h4>
-                      <h5>12th Feb, 2017 at 05:56 pm</h5>
-                      <a class="reply_btn" href="#">Reply</a>
-                    </div>
-                  </div>
-                  <p>
-                    Lorem ipsum dolor sit amet, consectetur adipisicing elit,
-                    sed do eiusmod tempor incididunt ut labore et dolore magna
-                    aliqua. Ut enim ad minim veniam, quis nostrud exercitation
-                    ullamco laboris nisi ut aliquip ex ea commodo
-                  </p>
-                </div>
-                <div class="review_item">
-                  <div class="media">
-                    <div class="d-flex">
-                      <img src="img/product/single-product/review-3.png" alt="" />
-                    </div>
-                    <div class="media-body">
-                      <h4>Blake Ruiz</h4>
-                      <h5>12th Feb, 2017 at 05:56 pm</h5>
-                      <a class="reply_btn" href="#">Reply</a>
-                    </div>
-                  </div>
-                  <p>
-                    Lorem ipsum dolor sit amet, consectetur adipisicing elit,
-                    sed do eiusmod tempor incididunt ut labore et dolore magna
-                    aliqua. Ut enim ad minim veniam, quis nostrud exercitation
-                    ullamco laboris nisi ut aliquip ex ea commodo
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div class="col-lg-6">
-              <div class="review_box">
-                <h4>Post a comment</h4>
-                <form class="row contact_form" action="contact_process.php" method="post" id="contactForm"
-                  novalidate="novalidate">
-                  <div class="col-md-12">
-                    <div class="form-group">
-                      <input type="text" class="form-control" id="name" name="name" placeholder="Your Full name" />
-                    </div>
-                  </div>
-                  <div class="col-md-12">
-                    <div class="form-group">
-                      <input type="email" class="form-control" id="email" name="email" placeholder="Email Address" />
-                    </div>
-                  </div>
-                  <div class="col-md-12">
-                    <div class="form-group">
-                      <input type="text" class="form-control" id="number" name="number" placeholder="Phone Number" />
-                    </div>
-                  </div>
-                  <div class="col-md-12">
-                    <div class="form-group">
-                      <textarea class="form-control" name="message" id="message" rows="1"
-                        placeholder="Message"></textarea>
-                    </div>
-                  </div>
-                  <div class="col-md-12 text-right">
-                    <button type="submit" value="submit" class="btn_3">
-                      Submit Now
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
           </div>
         </div>
         <div class="tab-pane fade show active" id="review" role="tabpanel" aria-labelledby="review-tab">
@@ -333,7 +248,7 @@
                 <div class="review_item">
                   <div class="media">
                     <div class="d-flex">
-                      <img src="img/product/single-product/review-1.png" alt="" />
+                      <!-- image -->
                     </div>
                     <div class="media-body">
                       <h4>Blake Ruiz</h4>
@@ -354,7 +269,7 @@
                 <div class="review_item">
                   <div class="media">
                     <div class="d-flex">
-                      <img src="img/product/single-product/review-2.png" alt="" />
+                      <!-- image -->
                     </div>
                     <div class="media-body">
                       <h4>Blake Ruiz</h4>
@@ -375,7 +290,7 @@
                 <div class="review_item">
                   <div class="media">
                     <div class="d-flex">
-                      <img src="img/product/single-product/review-3.png" alt="" />
+                      <!-- image -->
                     </div>
                     <div class="media-body">
                       <h4>Blake Ruiz</h4>
@@ -476,21 +391,24 @@
       <div class="row align-items-center justify-content-between">
         <div class="col-lg-12">
           <div class="best_product_slider owl-carousel">
-            <% relatedProducts.forEach(product => { %>
+            <% relatedProducts.forEach(product=> { %>
               <div class="single_product_item">
-                <img src="<%= product.images[0] %>" alt="<%= product.name %>">
+                <img src="<%= product?.variants[0]?.images[0] %>" alt="<%= product.name %>">
                 <div class="single_product_text">
-                  <h4><%= product.name %></h4>
-                  <h3>$<%= product.price %></h3>
+                  <h4>
+                    <%= product.name %>
+                  </h4>
+                  <h3>$<%= product.price %>
+                  </h3>
                 </div>
               </div>
-            <% }); %>
+              <% }); %>
           </div>
         </div>
       </div>
     </div>
   </section>
-  
+
   <!-- product_list part end-->
 
 
@@ -499,36 +417,304 @@
     document.addEventListener("DOMContentLoaded", function () {
       const zoomContainer = document.querySelector(".image-zoom-container");
       const zoomImage = document.querySelector(".zoom-image");
-
+      const thumbnails = document.querySelectorAll(".thumbnail");
+    
+      const addToCartButtons = document.querySelectorAll(".btn_3");
+      addToCartButtons.forEach(button => {
+        button.addEventListener("click", () => {
+          const productId = button.getAttribute("data-product-id");
+          addToCart(productId);
+        });
+      });
+    
+      const wishlistLinks = document.querySelectorAll(".like_us");
+      wishlistLinks.forEach(link => {
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          const productId = link.getAttribute("data-product-id");
+          addToWishlist(productId);
+        });
+      });
+    
+      const colorOptions = document.querySelectorAll(".color-option");
+      colorOptions.forEach(option => {
+        option.addEventListener("click", () => {
+          const color = option.getAttribute("data-color");
+          const productId = option.getAttribute("data-product-id");
+          selectColor(option, color, productId);
+        });
+      });
+    
+      thumbnails.forEach(thumbnail => {
+        thumbnail.addEventListener("click", () => {
+          changeImage(thumbnail);
+        });
+      });
+    
       zoomContainer.addEventListener("mousemove", function (event) {
         const { left, top, width, height } = zoomContainer.getBoundingClientRect();
-
-        // Calculate mouse position relative to the image
-        const x = (event.clientX - left) / width * 100;
-        const y = (event.clientY - top) / height * 100;
-
-        // Apply zoom effect
+        const x = ((event.clientX - left) / width) * 100;
+        const y = ((event.clientY - top) / height) * 100;
         zoomImage.style.transformOrigin = `${x}% ${y}%`;
         zoomImage.style.transform = "scale(2)";
       });
-
-      // Reset zoom when mouse leaves
+    
       zoomContainer.addEventListener("mouseleave", function () {
         zoomImage.style.transform = "scale(1)";
       });
     });
-
-
+    
     function changeImage(thumbnail) {
-        document.getElementById("mainImg").src = thumbnail.src;
+      document.getElementById("mainImg").src = thumbnail.src;
     }
-
-
-    function selectColor(element, color) {
-        document.querySelectorAll(".color-option").forEach(el => el.classList.remove("selected"));
-        element.classList.add("selected");
-        
+    
+    async function selectColor(element, selectedColor, productId) {
+      document.querySelectorAll(".color-option").forEach(el => el.classList.remove("selected"));
+      element.classList.add("selected");
+    
+      const params = new URLSearchParams(window.location.search);
+      params.set("color", selectedColor);
+      history.pushState(null, "", "?" + params.toString());
+    
+      document.getElementById("sizeOptions").innerHTML = '<div class="text-muted">Please select a color first</div>';
+      document.getElementById("stockStatus").innerText = "Please select a size";
+      document.getElementById("quantity").max = 0;
+    
+      try {
+        const response = await fetch(`/user/product-details/${productId}/${selectedColor}`, {
+          headers: { "X-Requested-With": "XMLHttpRequest" }
+        });
+        const data = await response.json();
+    
+        if (data.success && data.variants.length > 0) {
+          const mainImage = document.getElementById("mainImg");
+          const thumbnailsContainer = document.querySelector(".thumbnails");
+    
+          mainImage.src = data.variants[0].images[0];
+          thumbnailsContainer.innerHTML = "";
+    
+          data.variants[0].images.forEach((image, index) => {
+            const imgElement = document.createElement("img");
+            imgElement.src = image;
+            imgElement.alt = `Thumbnail ${index}`;
+            imgElement.className = "thumbnail";
+            imgElement.onclick = function () {
+              changeImage(this);
+            };
+            thumbnailsContainer.appendChild(imgElement);
+          });
+    
+          const sizeContainer = document.getElementById("sizeOptions");
+          sizeContainer.innerHTML = "";
+    
+          data.variants.forEach(variant => {
+            const sizeBtn = document.createElement("button");
+            sizeBtn.className = "size-btn";
+            sizeBtn.textContent = variant.size;
+            sizeBtn.setAttribute("data-size", variant.size);
+            sizeBtn.setAttribute("data-stock", variant.stock);
+            sizeBtn.setAttribute("data-original-price", variant.originalPrice);
+            sizeBtn.setAttribute("data-discounted-price", variant.discountedPrice);
+            sizeBtn.setAttribute("data-has-offer", variant.hasOffer);
+            sizeBtn.setAttribute("data-discount-percentage", variant.discountPercentage || "");
+            sizeBtn.setAttribute("data-variant-id", variant._id);
+            sizeBtn.onclick = function () {
+              selectSize(sizeBtn);
+            };
+            sizeContainer.appendChild(sizeBtn);
+          });
+        } else {
+          document.getElementById("sizeOptions").innerHTML = '<div class="text-danger">No sizes available for this color</div>';
+        }
+      } catch (error) {
+        console.error("Error fetching sizes:", error);
+      }
     }
+    
+    function selectSize(element) {
+      document.querySelectorAll(".size-btn").forEach(el => el.classList.remove("selected"));
+      element.classList.add("selected");
+    
+      const stock = element.getAttribute("data-stock");
+      const originalPrice = element.getAttribute("data-original-price");
+      const discountedPrice = element.getAttribute("data-discounted-price");
+      const hasOffer = element.getAttribute("data-has-offer") === "true";
+      const discountPercentage = element.getAttribute("data-discount-percentage");
+    
+      document.getElementById("stockStatus").innerText = stock > 0 ? `${stock} available` : "Out of stock";
+      document.getElementById("quantity").max = stock;
+    
+      // Update price display with offer price
+      const priceDisplay = document.getElementById("priceDisplay");
+      priceDisplay.innerHTML = hasOffer
+        ? `₹${discountedPrice} <span class="original-price">₹${originalPrice}</span> <span class="discount-percentage">(${discountPercentage}% OFF)</span>`
+        : `₹${originalPrice}`;
+    }
+    
+    function addToCart(productId) {
+  const selectedSizeBtn = document.querySelector(".size-btn.selected");
+  const sizeError = document.getElementById("sizeError");
+  const quantity = parseInt(document.getElementById("quantity").value);
 
-  </script>
+  if (!selectedSizeBtn) {
+    sizeError.innerText = "Please select a color & size before adding to cart!";
+    sizeError.style.color = "red";
+    return;
+  }
+
+  sizeError.innerText = "";
+
+  const variantId = selectedSizeBtn.getAttribute("data-variant-id");
+  const stock = parseInt(selectedSizeBtn.getAttribute("data-stock"));
+  const discountedPrice = parseFloat(selectedSizeBtn.getAttribute("data-discounted-price"));
+  const originalPrice = parseFloat(selectedSizeBtn.getAttribute("data-original-price"));
+  const hasOffer = selectedSizeBtn.getAttribute("data-has-offer") === "true";
+  const discountPercentage = selectedSizeBtn.getAttribute("data-discount-percentage");
+
+  if (quantity > stock) {
+    sizeError.innerText = "Quantity exceeds available stock!";
+    return;
+  }
+
+  const cartItem = {
+    productId,
+    variantId,
+    quantity,
+    price: discountedPrice, // Send discounted price to backend
+    originalPrice, // Optional: for reference
+    hasOffer, // Optional: for reference
+    discountPercentage // Optional: for reference
+  };
+
+  console.log(cartItem);
+
+  fetch("/user/add-to-cart", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cartItem),
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      if (data.success) {
+        Swal.fire({
+          position: "center",
+          icon: "success",
+          title: "Added to cart!",
+          showConfirmButton: false,
+          timer: 1500,
+        });
+        updateCartCount(data.cartCount);
+      } else {
+        Swal.fire({
+          position: "center",
+          icon: "error",
+          title: data.message || "Failed to add to cart!",
+          showConfirmButton: false,
+          timer: 1500,
+        });
+      }
+    })
+    .catch((error) => {
+      console.error("Error:", error);
+      Swal.fire({
+        position: "top-end",
+        icon: "error",
+        title: "An error occurred!",
+        showConfirmButton: false,
+        timer: 1500,
+      });
+    });
+}
+
+function updateCartCount(count) {
+  const cartIcon = document.querySelector(".cart-count");
+  if (cartIcon) cartIcon.textContent = count;
+}
+    
+    function addToWishlist(productId) {
+      const selectedSizeBtn = document.querySelector(".size-btn.selected");
+      const sizeError = document.getElementById("sizeError");
+    
+      if (!selectedSizeBtn) {
+        sizeError.innerText = "Please select a color & size before adding to wishlist!";
+        sizeError.style.color = "red";
+        return;
+      }
+    
+      sizeError.innerText = "";
+    
+      const variantId = selectedSizeBtn.getAttribute("data-variant-id");
+    
+      fetch("/user/add-to-wishlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, variantId }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            Swal.fire({
+              position: "center",
+              icon: "success",
+              title: "Added to Wishlist!",
+              showConfirmButton: false,
+              timer: 1500,
+            });
+            updateWishlistCount(data.wishlistCount);
+          } else {
+            Swal.fire({
+              position: "center",
+              icon: "error",
+              title: data.message || "Failed to add to Wishlist!",
+              showConfirmButton: false,
+              timer: 1500,
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          Swal.fire({
+            position: "top-end",
+            icon: "error",
+            title: "An error occurred!",
+            showConfirmButton: false,
+            timer: 1500,
+          });
+        });
+    }
+    
+    function updateWishlistCount(count) {
+      const wishlistCountElement = document.getElementById("wishlistCount");
+      if (wishlistCountElement) {
+        wishlistCountElement.innerText = count;
+      }
+    }
+    
+    function showSizeError(message) {
+      let errorElement = document.getElementById("sizeError");
+      if (!errorElement) {
+        errorElement = document.createElement("div");
+        errorElement.id = "sizeError";
+        errorElement.style.color = "red";
+        errorElement.style.marginTop = "5px";
+        document.getElementById("sizeOptions").appendChild(errorElement);
+      }
+      errorElement.innerText = message;
+    }
+    
+    function generateBreadcrumbs() {
+      const path = window.location.pathname;
+      const pathParts = path.split('/').filter(part => part.length > 0);
+      const breadcrumbContainer = document.querySelector('.breadcrumb_iner_item p');
+      let breadcrumbHtml = '<a href="/">Home</a>';
+      let accumulatedPath = '';
+      for (let i = 0; i < pathParts.length; i++) {
+        accumulatedPath += '/' + pathParts[i];
+        breadcrumbHtml += ` <span>-</span> <a href="${accumulatedPath}">${pathParts[i]}</a>`;
+      }
+      if (breadcrumbContainer) breadcrumbContainer.innerHTML = breadcrumbHtml;
+    }
+    
+    window.onload = generateBreadcrumbs;
+    </script>
   <%- include ("../user/partials/footer")%>

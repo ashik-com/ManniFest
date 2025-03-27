@@ -1,333 +1,272 @@
 <%- include('../admin/partials/header') %>
-<!--  Header End -->
 <div class="container-fluid">
   <div class="card">
     <div class="card-body">
       <h5 class="card-title fw-semibold mb-4">Product Management</h5>
       <div class="card mb-0">
         <div class="card-body">
-          <form id="addProductForm" enctype="multipart/form-data">
+          <form id="editProductForm" enctype="multipart/form-data">
             <fieldset>
               <legend class="text-center">Edit Product</legend>
               <div class="mb-3">
                 <label for="name" class="form-label">Product Name</label>
-                <input type="text" class="form-control" id="name" name="name" required>
+                <input type="text" class="form-control" id="name" name="name" value="<%= product.name %>" required>
               </div>
-
               <div class="mb-3">
                 <label for="description" class="form-label">Description</label>
-                <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                <textarea class="form-control" id="description" name="description" rows="3" required><%= product.description %></textarea>
               </div>
-
               <div class="mb-3">
                 <label for="category" class="form-label">Category</label>
                 <select class="form-select" id="category" name="category" required>
-
                   <% categories.forEach(category => { %>
-                    <option value="<%= category._id %>"><%= category.name %></option>
+                    <option value="<%= category._id %>" <%= category._id.toString() === product.category.toString() ? 'selected' : '' %>>
+                      <%= category.name %>
+                    </option>
                   <% }) %>
-
                 </select>
               </div>
-
-              <div class="mb-3">
-                <label for="images" class="form-label">Product Images</label>
-                <input type="file" class="form-control" id="images" name="images" multiple required>
-              </div>
-              
-              <!-- Image Preview & Cropping Modal -->
               <div id="cropperModal" style="display: none;">
                 <img id="cropperImage" style="max-width: 100%;">
                 <button id="cropImage" class="btn btn-primary mt-2">Crop & Save</button>
               </div>
-              
-              <!-- Cropped Image Preview -->
-              <div id="croppedImagesPreview"></div>
-              
-
               <div class="mb-3">
                 <label for="isListed" class="form-label">Is Listed?</label>
-                <input type="checkbox" id="isListed" name="isListed" value="true">
+                <input type="checkbox" id="isListed" name="isListed" value="true" <%= product.isListed ? 'checked' : '' %>>
               </div>
-
               <div class="mb-3">
                 <label for="status" class="form-label">Status</label>
                 <select class="form-select" id="status" name="status" required>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="active" <%= product.status === 'active' ? 'selected' : '' %>>Active</option>
+                  <option value="inactive" <%= product.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
                 </select>
               </div>
-
               <div class="mb-3">
-                <label for="price" class="form-label">Price</label>
-                <input type="number" class="form-control" id="price" name="price" required>
-              </div>
-
-              <div class="mb-3">
-                <label for="stock" class="form-label">Stock Quantity</label>
-                <input type="number" class="form-control" id="stock" name="stock" required>
-              </div>
-
-              <div class="mb-3">
-                <label for="variants" class="form-label">Variants</label>
-                <button type="button" id="addVariant" class="btn btn-primary btn-sm">Add Variant</button>
-                <div id="variantContainer"></div>
+                <label for="price" class="form-label">Base Price</label>
+                <input type="number" class="form-control" id="price" name="price" value="<%= product.baseprice %>" required>
               </div>
               
-
+              <!-- Variants Section -->
+              <div class="mb-3">
+                <label for="variants" class="form-label">Variants</label>
+                <div id="variantContainer">
+                  <% variants.forEach((variant, index) => { %>
+                    <div class="variant-group border p-3 mt-2" data-index="<%= index %>">
+                      <label>Color:</label>
+                      <input type="text" class="form-control" name="variants[<%= index %>][color]" value="<%= variant.color %>" required>
+                      <label>Size:</label>
+                      <select class="form-select" name="variants[<%= index %>][size]" required>
+                        <option value="S" <%= variant.size === "S" ? "selected" : "" %>>S</option>
+                        <option value="M" <%= variant.size === "M" ? "selected" : "" %>>M</option>
+                        <option value="L" <%= variant.size === "L" ? "selected" : "" %>>L</option>
+                        <option value="XL" <%= variant.size === "XL" ? "selected" : "" %>>XL</option>
+                      </select>
+                      <label>Price:</label>
+                      <input type="number" class="form-control" name="variants[<%= index %>][price]" value="<%= variant.price %>" required>
+                      <label>Stock:</label>
+                      <input type="number" class="form-control" name="variants[<%= index %>][stock]" value="<%= variant.stock %>" required>
+                      <label>Variant Images:</label>
+                      <input type="file" class="form-control variantImages" data-index="<%= index %>" multiple>
+                      <div id="variantImagesPreview_<%= index %>" class="d-flex flex-wrap">
+                        <% variant.images.forEach(image => { %>
+                          <div>
+                            <img src="/uploads/<%= image %>" style="max-width: 100px;" class="m-2">
+                            <button type="button" class="btn btn-danger btn-sm remove-image" data-index="<%= index %>" data-image="<%= image %>">❌</button>
+                          </div>
+                        <% }) %>
+                      </div>
+                    </div>
+                  <% }) %>
+                </div>
+                <button type="button" id="addVariant" class="btn btn-primary btn-sm">Add Variant</button>
+              </div>
               <div class="mb-3">
                 <label for="specifications" class="form-label">Specifications</label>
-                <input type="text" class="form-control" name="specifications[material]" placeholder="Material">
-                <select class="form-select" id="form-control" name="specifications[sleeveType]" required>
-                  <option value="Full sleeve">Full sleeve</option>
-                  <option value="Half sleeve">Half sleeve</option>
+                <input type="text" class="form-control" name="specifications[material]" placeholder="Material" value="<%= product.specifications?.material || '' %>">
+                <select class="form-select" name="specifications[sleeveType]" required>
+                  <option value="Full sleeve" <%= product.specifications?.sleeveType === 'Full sleeve' ? 'selected' : '' %>>Full sleeve</option>
+                  <option value="Half sleeve" <%= product.specifications?.sleeveType === 'Half sleeve' ? 'selected' : '' %>>Half sleeve</option>
                 </select>
-
-                
-                
-                <input type="text" class="form-control" name="specifications[fitType]" placeholder="Fit Type">
+                <input type="text" class="form-control" name="specifications[fitType]" placeholder="Fit Type" value="<%= product.specifications?.fitType || '' %>">
               </div>
-
-              <button type="submit" class="btn btn-success" id="addProductButton">Add Product</button>
+              <button type="submit" class="btn btn-success" id="addProductButton" data-id="<%= product._id %>">Save Edits</button>
             </fieldset>
           </form>
         </div>
       </div>
     </div>
+    <a href="/admin/products">Back</a>
   </div>
-  <a href="/admin/products">Back</a>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
-
-
-<script>
+  <script>
     document.addEventListener("DOMContentLoaded", () => {
-    const variantContainer = document.getElementById("variantContainer");
-    const addVariantButton = document.getElementById("addVariant");
-    const productImageInput = document.getElementById("images");
-    const cropperModal = document.getElementById("cropperModal");
-    const cropperImage = document.getElementById("cropperImage");
-    const cropImageBtn = document.getElementById("cropImage");
-    const productImagesPreview = document.getElementById("croppedImagesPreview");
-    const addProductForm = document.getElementById("addProductForm");
+      const variantContainer = document.getElementById("variantContainer");
+      const addVariantButton = document.getElementById("addVariant");
+      const cropperModal = document.getElementById("cropperModal");
+      const cropperImage = document.getElementById("cropperImage");
+      const cropImageBtn = document.getElementById("cropImage");
+      const addProductForm = document.getElementById("editProductForm");
+      const editBtn = document.getElementById("addProductButton");
+      const productId = editBtn.getAttribute("data-id");
 
-    let cropper;
-    let croppingTarget = null;
-    let croppedProductImages = [];
-    let croppedVariantImages = {};
+      let cropper;
+      let croppingTarget = null;
+      let croppedVariantImages = {};
+      let removedImages = {};
 
-    addVariantButton.addEventListener("click", addVariantGroup);
+      addVariantButton.addEventListener("click", addVariantGroup);
 
-    productImageInput.addEventListener("change", (event) => handleFileInput(event, "product"));
-    variantContainer.addEventListener("change", (event) => {
+      variantContainer.addEventListener("change", (event) => {
         if (event.target.classList.contains("variantImages")) {
-            const variantIndex = event.target.dataset.index;
-            handleFileInput(event, "variant", variantIndex);
+          const variantIndex = event.target.dataset.index;
+          handleFileInput(event, variantIndex);
         }
-    });
+      });
 
-    addProductForm.addEventListener("submit", async (event) => {
+      variantContainer.addEventListener("click", (event) => {
+        if (event.target.classList.contains("remove-image")) {
+          const variantIndex = event.target.dataset.index;
+          const imageName = event.target.dataset.image;
+          event.target.parentElement.remove();
+
+          if (!removedImages[variantIndex]) {
+            removedImages[variantIndex] = [];
+          }
+          removedImages[variantIndex].push(imageName);
+        }
+      });
+
+      addProductForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const submitButton = document.activeElement;
+        if (submitButton.id !== "addProductButton") return;
 
-        if (submitButton.id !== "addProductButton") {
-            console.log("Form submission prevented as Add Product button was not clicked.");
-            return;
-        }
-
-        // Validate required fields
         const productName = document.getElementById("name").value;
         const description = document.getElementById("description").value;
         const category = document.getElementById("category").value;
         const price = document.getElementById("price").value;
-        const stock = document.getElementById("stock").value;
 
-        if (!productName || !description || !category || !price || !stock) {
-            Swal.fire("Error", "Please fill all required fields!", "error");
-            return;
+        if (!productName || !description || !category || !price) {
+          Swal.fire("Error", "Please fill all required fields!", "error");
+          return;
         }
 
-        if (croppedProductImages.length === 0) {
-            Swal.fire("Error", "Please upload at least one product image!", "error");
-            return;
-        }
-
-        // Validate variants
         const variantGroups = document.querySelectorAll(".variant-group");
-        if (variantGroups.length === 0) {
-            Swal.fire("Error", "Please add at least one variant!", "error");
-            return;
-        }
-
         let isValid = true;
         variantGroups.forEach((variant, index) => {
-            const color = variant.querySelector(`[name="variants[${index}][color]"]`).value;
-            const size = variant.querySelector(`[name="variants[${index}][size]"]`).value;
-            const price = variant.querySelector(`[name="variants[${index}][price]"]`).value;
-            const stock = variant.querySelector(`[name="variants[${index}][stock]"]`).value;
+          const color = variant.querySelector(`[name="variants[${index}][color]"]`).value;
+          const size = variant.querySelector(`[name="variants[${index}][size]"]`).value;
+          const price = variant.querySelector(`[name="variants[${index}][price]"]`).value;
+          const stock = variant.querySelector(`[name="variants[${index}][stock]"]`).value;
 
-            if (!color || !size || !price || !stock) {
-                Swal.fire("Error", `Please fill all fields for variant ${index + 1}!`, "error");
-                isValid = false;
-            }
+          if (!color || !size || !price || !stock) {
+            Swal.fire("Error", `Please fill all fields for variant ${index + 1}!`, "error");
+            isValid = false;
+          }
         });
 
         if (!isValid) return;
 
-        // Prepare form data
         const formData = new FormData(event.target);
-        croppedProductImages.forEach((image) => formData.append("images", image));
 
-       
         variantGroups.forEach((variant, index) => {
-            const color = variant.querySelector(`[name="variants[${index}][color]"]`).value;
-            const size = variant.querySelector(`[name="variants[${index}][size]"]`).value;
-            const price = variant.querySelector(`[name="variants[${index}][price]"]`).value;
-            const stock = variant.querySelector(`[name="variants[${index}][stock]"]`).value;
-
-            const variantData = {
-                color,
-                size,
-                price,
-                stock,
-                images: []
-            };
-
-            if (croppedVariantImages[index]) {
-                croppedVariantImages[index].forEach((image) => {
-                    formData.append(`variant_images_${index}[]`, image);
-                    variantData.images.push(image.name);
-                });
-            }
-
+          if (removedImages[index]) {
+            removedImages[index].forEach((image) => {
+              formData.append(`removed_images_${index}[]`, image);
+            });
+          }
+          if (croppedVariantImages[index]) {
+            croppedVariantImages[index].forEach((image) => {
+              formData.append(`variant_images_${index}[]`, image);
+            });
+          }
         });
 
-       
+        console.log("FormData contents:");
+        for (let [key, value] of formData.entries()) {
+          console.log(`${key}:`, value);
+        }
 
         try {
-            const response = await fetch("/admin/addProduct", {
-                method: "POST",
-                body: formData,
+          const response = await fetch(`/admin/edit-Product/${productId}`, {
+            method: "POST",
+            body: formData,
+          });
+          const data = await response.json();
+
+          if (data.success) {
+            Swal.fire("Success!", "Product edited successfully.", "success").then(() => {
+              window.location.href = "/admin/products";
             });
-            const data = await response.json();
-
-            if (data.success) {
-                Swal.fire("Success!", "Product added successfully.", "success").then(() => {
-                    window.location.href = "/admin/products";
-                });
-            } else {
-                Swal.fire("Error", data.message || "Something went wrong!", "error");
-            }
+          } else {
+            Swal.fire("Error", data.message || "Something went wrong!", "error");
+          }
         } catch (error) {
-            console.error("Error:", error);
-            Swal.fire("Error", "An error occurred while submitting the form.", "error");
+          console.error("Error:", error);
+          Swal.fire("Error", "An error occurred while submitting the form.", "error");
         }
-    });
+      });
 
-    // Helper functions
-    function addVariantGroup() {
+      function addVariantGroup() {
         const index = document.querySelectorAll(".variant-group").length;
         const variantHtml = `
-            <div class="variant-group border p-3 mt-2">
-                <label>Color:</label>
-                <input type="text" class="form-control" name="variants[${index}][color]" required>
-
-                <label>Size:</label>
-                <select class="form-select" name="variants[${index}][size]" required>
-                    <option value="S">S</option>
-                    <option value="M">M</option>
-                    <option value="L">L</option>
-                    <option value="XL">XL</option>
-                </select>
-
-                <label>Price:</label>
-                <input type="number" class="form-control" name="variants[${index}][price]" required>
-
-                <label>Stock:</label>
-                <input type="number" class="form-control" name="variants[${index}][stock]" required>
-
-                <label>Variant Images:</label>
-                <input type="file" class="form-control variantImages" data-index="${index}" multiple required>
-
-                <div id="variantImagesPreview_${index}"></div>
-            </div>
-        `;
+          <div class="variant-group border p-3 mt-2">
+            <label>Color:</label>
+            <input type="text" class="form-control" name="variants[${index}][color]" required>
+            <label>Size:</label>
+            <select class="form-select" name="variants[${index}][size]" required>
+              <option value="S">S</option>
+              <option value="M">M</option>
+              <option value="L">L</option>
+              <option value="XL">XL</option>
+            </select>
+            <label>Price:</label>
+            <input type="number" class="form-control" name="variants[${index}][price]" required>
+            <label>Stock:</label>
+            <input type="number" class="form-control" name="variants[${index}][stock]" required>
+            <label>Variant Images:</label>
+            <input type="file" class="form-control variantImages" data-index="${index}" multiple>
+            <div id="variantImagesPreview_${index}" class="d-flex flex-wrap"></div>
+          </div>`;
         variantContainer.insertAdjacentHTML("beforeend", variantHtml);
-    }
+      }
 
-    function handleFileInput(event, targetType, variantIndex = null) {
+      function handleFileInput(event, variantIndex) {
         const files = Array.from(event.target.files);
         if (files.length === 0) return;
 
-        let currentIndex = 0;
+        files.forEach((file) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            cropperImage.src = e.target.result;
+            cropperModal.style.display = "block";
+            croppingTarget = variantIndex;
 
-        function cropNextImage() {
-            if (currentIndex < files.length) {
-                const file = files[currentIndex];
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    cropperImage.src = e.target.result;
-                    cropperModal.style.display = "block";
-                    croppingTarget = { type: targetType, index: variantIndex };
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(cropperImage, { aspectRatio: NaN, viewMode: 2 });
 
-                    if (cropper) cropper.destroy();
-                    cropper = new Cropper(cropperImage, { aspectRatio: NaN, viewMode: 2 });
+            cropImageBtn.onclick = () => {
+              handleCroppedImage(variantIndex);
+            };
+          };
+          reader.readAsDataURL(file);
+        });
+      }
 
-                    cropImageBtn.onclick = function () {
-                        handleCroppedImage(() => {
-                            currentIndex++;
-                            cropNextImage();
-                        });
-                    };
-                };
-                reader.readAsDataURL(file);
-            } else {
-                cropperModal.style.display = "none";
-            }
-        }
-
-        cropNextImage();
-    }
-
-    function handleCroppedImage(callback) {
-        if (cropper) {
-            const canvas = cropper.getCroppedCanvas();
-            if (canvas) {
-                canvas.toBlob((blob) => {
-                    const file = new File([blob], `cropped_${Date.now()}.jpg`, { type: "image/jpeg" });
-
-                    if (croppingTarget.type === "product") {
-                        croppedProductImages.push(file);
-                        displayCroppedImagePreview(canvas.toDataURL(), productImagesPreview);
-                    } else if (croppingTarget.type === "variant") {
-                        if (!croppedVariantImages[croppingTarget.index]) {
-                            croppedVariantImages[croppingTarget.index] = [];
-                        }
-                        croppedVariantImages[croppingTarget.index].push(file);
-                        displayCroppedImagePreview(canvas.toDataURL(), document.getElementById(`variantImagesPreview_${croppingTarget.index}`));
-                    }
-
-                    cropper.destroy();
-                    cropperModal.style.display = "none";
-                    setTimeout(() => callback(), 500);
-                }, "image/jpeg");
-            }
-        }
-    }
-
-    function displayCroppedImagePreview(imageSrc, previewContainer) {
-        const imgElement = document.createElement("img");
-        imgElement.src = imageSrc;
-        imgElement.style.maxWidth = "100px";
-        imgElement.classList.add("m-2");
-        previewContainer.appendChild(imgElement);
-    }
-});
+      function handleCroppedImage(variantIndex) {
+        const canvas = cropper.getCroppedCanvas();
+        canvas.toBlob((blob) => {
+          const file = new File([blob], `cropped_${Date.now()}.jpg`, { type: "image/jpeg" });
+          croppedVariantImages[variantIndex] = croppedVariantImages[variantIndex] || [];
+          croppedVariantImages[variantIndex].push(file);
+          console.log(`Cropped image for variant ${variantIndex}:`, file);
+          cropperModal.style.display = "none";
+        });
+      }
+    });
   </script>
-  
-
 <%- include('../admin/partials/footer') %>

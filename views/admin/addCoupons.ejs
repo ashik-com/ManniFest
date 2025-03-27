@@ -1,0 +1,316 @@
+<%- include('../admin/partials/header') %>
+
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title fw-semibold mb-4">Coupon Management</h5>
+            <div class="card mb-0">
+                <div class="card-body">
+                    <form id="couponForm">
+                        <fieldset>
+                            <legend class="text-center">Add New Coupon</legend>
+                            <div class="mb-3">
+                                <label for="code" class="form-label">Coupon Code</label>
+                                <input type="text" class="form-control" id="code" name="code" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="discountType" class="form-label">Discount Type</label>
+                                <select class="form-select" id="discountType" name="discountType" required>
+                                    <option value="percentage">Percentage</option>
+                                    <option value="fixed">Fixed Amount</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="discountValue" class="form-label">Discount Value</label>
+                                <input type="number" class="form-control" id="discountValue" name="discountValue" required>
+                                <div id="valueHelp" class="form-text">For percentage, enter value between 1-100</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="minimumPurchase" class="form-label">Minimum Purchase (₹)</label>
+                                <input type="number" class="form-control" id="minimumPurchase" name="minimumPurchase" value="0">
+                            </div>
+                            <div class="mb-3">
+                                <label for="maximumDiscount" class="form-label">Maximum Discount Amount (₹)</label>
+                                <input type="number" class="form-control" id="maximumDiscount" name="maximumDiscount" value="0">
+                                <div class="form-text">Set to 0 for no maximum limit</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="expiryDate" class="form-label">Expiry Date</label>
+                                <input type="date" class="form-control" id="expiryDate" name="expiryDate" required>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="isActive" name="isActive" checked>
+                                <label class="form-check-label" for="isActive">Active</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">Create Coupon</button>
+                            <a href="/admin/coupons" class="btn btn-secondary">Cancel</a>
+                        </fieldset>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <a href="/admin/coupons">Back</a>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const couponForm = document.getElementById('couponForm');
+    const codeInput = document.getElementById('code');
+    const discountTypeSelect = document.getElementById('discountType');
+    const discountValueInput = document.getElementById('discountValue');
+    const minimumPurchaseInput = document.getElementById('minimumPurchase');
+    const maximumDiscountInput = document.getElementById('maximumDiscount');
+    const expiryDateInput = document.getElementById('expiryDate');
+    const valueHelp = document.getElementById('valueHelp');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    // Auto-generate coupon code button
+    const generateCodeBtn = document.createElement('button');
+    generateCodeBtn.type = 'button';
+    generateCodeBtn.className = 'btn btn-outline-secondary mt-2';
+    generateCodeBtn.textContent = 'Generate Random Code';
+    codeInput.parentNode.appendChild(generateCodeBtn);
+    
+    generateCodeBtn.addEventListener('click', function() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        for (let i = 0; i < 8; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        codeInput.value = result;
+    });
+    
+    // Auto-format coupon code to uppercase
+    codeInput.addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+    
+    // Update helper text based on discount type
+    discountTypeSelect.addEventListener('change', function() {
+        if (this.value === 'percentage') {
+            valueHelp.textContent = 'For percentage, enter value between 1-100';
+            discountValueInput.max = 100;
+            maximumDiscountInput.parentNode.style.display = 'block';
+        } else {
+            valueHelp.textContent = 'Enter fixed discount amount in ₹';
+            discountValueInput.max = '';
+            maximumDiscountInput.parentNode.style.display = 'none';
+        }
+    });
+    
+    // Set minimum date to today
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayFormatted = `${yyyy}-${mm}-${dd}`;
+    expiryDateInput.min = todayFormatted;
+    
+    // Form submission with AJAX
+    couponForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating...';
+
+        
+        const code = codeInput.value.trim();
+        const discountType = discountTypeSelect.value;
+        const discountValue = parseFloat(discountValueInput.value) || 0;
+        const minimumPurchase = parseFloat(minimumPurchaseInput.value) || 0;
+        const maximumDiscount = parseFloat(maximumDiscountInput.value) || 0;
+        const expiryDate = new Date(expiryDateInput.value);
+        const currentDate = new Date();
+
+        const codeRegex = /^[A-Z0-9]+$/;
+        if (!code || !codeRegex.test(code)) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Coupon Code',
+                text: 'Coupon code must contain only letters and numbers (no spaces or special characters)',
+            });
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Coupon';
+            return;
+        }
+
+        if( discountValue> minimumPurchase){
+            Swal.fire({
+                icon: 'error',
+                title: 'MissConfigaration',
+                text: 'Discount amount cannot be greater than minimum purchase value',
+            });
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Coupon';
+            return
+        }
+        
+        if (!['percentage', 'fixed'].includes(discountType)) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Discount Type',
+                text: 'Discount type must be either "percentage" or "fixed"',
+            });
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Coupon';
+            return;
+        }
+        
+        if (discountValue <= 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Discount Value',
+                text: 'Discount value must be greater than zero',
+            });
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Coupon';
+            return;
+        }
+        
+        if (discountType === 'percentage' && (discountValue < 1 || discountValue > 100)) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Percentage',
+                text: 'Percentage discount must be between 1 and 100',
+            });
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Coupon';
+            return;
+        }
+        
+        if (minimumPurchase < 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Minimum Purchase',
+                text: 'Minimum purchase cannot be negative',
+            });
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Coupon';
+            return;
+        }
+        
+        if (maximumDiscount < 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Maximum Discount',
+                text: 'Maximum discount amount cannot be negative',
+            });
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Coupon';
+            return;
+        }
+        
+        if (discountType === 'fixed' && maximumDiscount > 0 && maximumDiscount < discountValue) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Maximum Discount',
+                text: 'Maximum discount amount cannot be less than the fixed discount value',
+            });
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Coupon';
+            return;
+        }
+        
+        if (isNaN(expiryDate.getTime()) || expiryDate <= currentDate) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Expiry Date',
+                text: 'Expiry date must be in the future',
+            });
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Coupon';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('code', code);
+        formData.append('discountType', discountType);
+        formData.append('discountValue', discountValue.toString());
+        formData.append('minimumPurchase', minimumPurchase.toString());
+        formData.append('maximumDiscount', maximumDiscount.toString());
+        formData.append('expiryDate', expiryDateInput.value); // Use raw value to avoid timezone issues
+        formData.append('isActive', isActive.toString());
+        formData.set('isActive', document.getElementById('isActive').checked);
+
+        try {
+            const response = await fetch('/admin/addcoupon', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                const errorMessages = result.errors ? Object.values(result.errors).join('\n') : 'Failed to create coupon';
+                throw new Error(errorMessages);
+            }
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: result.message || 'Coupon created successfully!',
+                showConfirmButton: true,
+            }).then(() => {
+                window.location.href = '/admin/coupons';
+            });
+        } catch (error) {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error creating coupon:\n' + error.message,
+            });
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Coupon';
+        }
+    });
+    
+    // Preview coupon display
+    const previewDiv = document.createElement('div');
+    previewDiv.className = 'mt-4 p-3 border rounded bg-light';
+    previewDiv.innerHTML = '<h5>Coupon Preview</h5><div id="couponPreview" class="p-3 border rounded bg-white"></div>';
+    couponForm.parentNode.appendChild(previewDiv);
+    
+    const couponPreview = document.getElementById('couponPreview');
+    
+    function updatePreview() {
+        const code = codeInput.value || 'SAMPLE';
+        const discountType = discountTypeSelect.value;
+        const discountValue = discountValueInput.value || '0';
+        const minPurchase = minimumPurchaseInput.value || '0';
+        const maxDiscount = maximumDiscountInput.value || '0';
+        const expiryDate = expiryDateInput.value ? new Date(expiryDateInput.value).toLocaleDateString() : 'Not set';
+        
+        let discountText = discountType === 'percentage' ? `${discountValue}% OFF` : `₹${discountValue} OFF`;
+        if (discountType === 'percentage' && maxDiscount > 0) {
+            discountText += ` (Max ₹${maxDiscount})`;
+        }
+        
+        couponPreview.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="text-primary">${code}</h4>
+                    <h3 class="fw-bold">${discountText}</h3>
+                    <p class="mb-0 text-muted">Min. Purchase: ₹${minPurchase}</p>
+                </div>
+                <div class="text-end">
+                    <p class="mb-0">Valid till</p>
+                    <p class="fw-bold">${expiryDate}</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    [codeInput, discountTypeSelect, discountValueInput, minimumPurchaseInput, maximumDiscountInput, expiryDateInput].forEach(input => {
+        input.addEventListener('input', updatePreview);
+        input.addEventListener('change', updatePreview);
+    });
+    
+    discountTypeSelect.dispatchEvent(new Event('change'));
+    updatePreview();
+});
+</script>
+
+<%- include('../admin/partials/footer') %>

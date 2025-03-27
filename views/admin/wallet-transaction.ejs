@@ -1,0 +1,68 @@
+<%- include('../admin/partials/header') %>
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2>Wallet Transactions</h2>
+                <input style="width: 400px;" type="text" id="searchInput" class="form-control" placeholder="Search by User ID or Transaction ID..." value="<%= searchQuery %>">
+                <!-- Optional: Add a button if you want additional actions -->
+            </div>
+            <div class="card">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>NO</th>
+                            <th>Transaction ID</th>
+                            <th>User ID</th>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Source</th>
+                            <th>Order ID</th>
+                            
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTableBody">
+                        <% if (transactions && transactions.length > 0) { %>
+                            <% transactions.forEach((transaction, index) => { %>
+                                <tr id="transactionRow-<%= transaction._id %>">
+                                    <td><%= index + 1 %></td>
+                                    <td><%= transaction.transactionId %></td>
+                                    <td><%= transaction.userId %></td>
+                                    <td><%= transaction.transactionDate.toISOString().split('T')[0] %> <%= new Date(transaction.transactionDate).toLocaleTimeString() %></td>
+                                    <td>
+                                        <span class="<%= transaction.transactionType === 'CREDIT' ? 'text-success' : 'text-danger' %>">
+                                            <%= transaction.transactionType %>
+                                        </span>
+                                    </td>
+                                    <td>₹<%= transaction.amount.toFixed(2) %></td>
+                                    <td><%= transaction.source || 'N/A' %></td>
+                                    <td><%= transaction.orderId || 'N/A' %></td>
+                                    
+                                </tr>
+                            <% }) %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="9" class="text-center">No transactions found</td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+                <div class="pagination">
+                    <% if (currentPage > 1) { %>
+                        <a href="/admin/wallet-transactions?page=<%= currentPage - 1 %>&search=<%= searchQuery %>">Previous</a>
+                    <% } %>
+                    <% for (let i = 1; i <= totalPages; i++) { %>
+                        <a href="/admin/wallet-transactions?page=<%= i %>&search=<%= searchQuery %>" class="<%= i === currentPage ? 'active' : '' %>">
+                            <%= i %>
+                        </a>
+                    <% } %>
+                    <% if (currentPage < totalPages) { %>
+                        <a href="/admin/wallet-transactions?page=<%= currentPage + 1 %>&search=<%= searchQuery %>">Next</a>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<%- include('../admin/partials/footer') %>

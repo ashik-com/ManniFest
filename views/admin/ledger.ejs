@@ -1,0 +1,69 @@
+<%- include('../admin/partials/header') %>
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2>Ledger</h2>
+                <input style="width: 400px;" type="text" id="searchInput" class="form-control" placeholder="Search by User ID or Transaction ID..." value="<%= searchQuery %>">
+            </div>
+            <div class="card">
+                <table class="table table-striped table-bordered" style="font-size: 14px;">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 5%;">NO</th>
+                            <th style="width: 15%;">Transaction ID</th>
+                            <th style="width: 10%;">User ID</th>
+                            <th style="width: 15%;">Date</th>
+                            <th style="width: 8%;">Type</th>
+                            <th style="width: 10%;">Amount</th>
+                            <th style="width: 20%; word-wrap: break-word;">Description</th>
+                            <th style="width: 10%;">Order ID</th>
+                            <th style="width: 10%;">Payment ID</th>
+                            <th style="width: 10%;">Balance After</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledgerTableBody">
+                        <% if (ledgerEntries && ledgerEntries.length > 0) { %>
+                            <% ledgerEntries.forEach((entry, index) => { %>
+                                <tr id="ledgerRow-<%= entry._id %>">
+                                    <td><%= index + 1 %></td>
+                                    <td style="word-wrap: break-word;"><%= entry.transactionId %></td>
+                                    <td><%= entry.userId %></td>
+                                    <td><%= entry.transactionDate.toISOString().split('T')[0] %> <%= new Date(entry.transactionDate).toLocaleTimeString() %></td>
+                                    <td>
+                                        <span class="<%= entry.transactionType === 'CREDIT' ? 'text-success' : 'text-danger' %>">
+                                            <%= entry.transactionType %>
+                                        </span>
+                                    </td>
+                                    <td>₹<%= entry.amount.toFixed(2) %></td>
+                                    <td style="word-wrap: break-word;"><%= entry.description || 'N/A' %></td>
+                                    <td><%= entry.orderId || 'N/A' %></td>
+                                    <td><%= entry.paymentId || 'N/A' %></td>
+                                    <td>₹<%= entry.balanceAfter.toFixed(2) %></td>
+                                </tr>
+                            <% }) %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="10" class="text-center">No ledger entries found</td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+                <div class="pagination">
+                    <% if (currentPage > 1) { %>
+                        <a href="/admin/ledger?page=<%= currentPage - 1 %>&search=<%= searchQuery %>">Previous</a>
+                    <% } %>
+                    <% for (let i = 1; i <= totalPages; i++) { %>
+                        <a href="/admin/ledger?page=<%= i %>&search=<%= searchQuery %>" class="<%= i === currentPage ? 'active' : '' %>">
+                            <%= i %>
+                        </a>
+                    <% } %>
+                    <% if (currentPage < totalPages) { %>
+                        <a href="/admin/ledger?page=<%= currentPage + 1 %>&search=<%= searchQuery %>">Next</a>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<%- include('../admin/partials/footer') %>

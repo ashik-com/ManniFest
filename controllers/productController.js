@@ -2,31 +2,66 @@ const User = require("../models/userSchema");
 const Category = require("../models/categorySchema");
 const Product = require("../models/productSchema")
 const Variant = require("../models/variantSchema")
+const path = require('path')
+const Offer = require("../models/offersSchema")
 const bcrypt = require("bcrypt");
 
 
 
 
 exports.getProducts = async (req, res) => {
-    try {
-        const products = await Product.find({})
-        .populate({
-            path: 'variants',
-            select: 'color size price stock' 
-        })
-        .populate({
-            path: 'category',
-            select: 'name' 
-        })
-        .lean();
-        res.render('admin/products',{products})
-    } catch (error) {
-        console.error('Error Fetching product:',error)
-        res.send(500).send('server error')
-        
-    }
-   
-}
+  try {
+      const page = parseInt(req.query.page) || 1;
+      let limit = 5;
+      const searchQuery = req.query.search || "";
+
+      const query = searchQuery
+          ? { name: { $regex: searchQuery, $options: "i" } }
+          : {};
+
+      const totalProducts = await Product.countDocuments({});
+
+      const totalPages = Math.ceil(totalProducts / limit);
+
+      const products = await Product.find(query)
+          .populate({
+              path: 'variants',
+              select: 'color size price stock images'
+          })
+          .populate({
+              path: 'category',
+              select: 'name'
+          })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .lean();
+
+      // Fetch offers for all products in the current page
+      const productIds = products.map(product => product._id);
+      const offers = await Offer.find({
+          productId: { $in: productIds },
+          isActive: true,
+          endDate: { $gte: new Date() } // Only active offers that haven't expired
+      }).lean();
+
+      // Add hasOffer flag to each product
+      products.forEach(product => {
+          product.hasOffer = offers.some(offer => 
+              offer.productId.toString() === product._id.toString()
+          );
+      });
+
+      res.render('admin/products', { 
+          products, 
+          totalPages, 
+          currentPage: page, 
+          searchQuery 
+      });
+  } catch (error) {
+      console.error('Error Fetching product:', error);
+      res.status(500).send('server error');
+  }
+};
 
 
 
@@ -45,74 +80,72 @@ exports.getAddProduct = async (req, res) => {
 exports.postAddProduct = async (req, res) => {
     try {
         const { name, description, category, specifications, variants, price, stock } = req.body;
-        const { meterial, sleeveType, fitType, pattern } = specifications
-        console.log(stock)
+        const { meterial, sleeveType, fitType, pattern } = specifications;
 
-        let images = req.files
-        
-        let productImg = []
-        let variantImg = []
+        let images = req.files;
+        let productImg = [];
+        let variantImagesMap = {};  
+
+        console.log("Received files:", images);
 
         for (let item of images) {
-            if (item.fieldname === "images" && item.originalname.startsWith("cropped")) {
-                productImg.push(item.path)
-            } else if (item.fieldname.startsWith("variant")) {
-                variantImg.push(item.path)
+            console.log("Processing file:", item.fieldname); 
+
+           
+            if (item.fieldname === "images") {
+                // productImg.push(item.path);
+            }
+            
+            else {
+                
+                let match = item.fieldname.match(/^variant_images_(\d+)(\[\])?$/);
+                if (match) {
+                    let variantIndex = parseInt(match[1], 10);
+                    if (!variantImagesMap[variantIndex]) {
+                        variantImagesMap[variantIndex] = [];
+                    }
+                    variantImagesMap[variantIndex].push(item.path);
+                }
             }
         }
 
 
-        const productsImg =productImg.map((fullPath)=>{
-            const productsImg ='/'+ fullPath.split('public\\')[1].replace(/\\/g, '/');
-            return productsImg;
+        console.log("Mapped Variant Images:", variantImagesMap); 
 
-        })
-        const variantsImg =variantImg.map((fullPath)=>{
-            const variantsImg ='/'+ fullPath.split('public\\')[1].replace(/\\/g, '/');
-            return variantsImg;
+        // const productsImg = productImg.map((fullPath) => '/' + fullPath.split('public\\')[1].replace(/\\/g, '/'));
 
-        })
-
-
-        if (!req.files || req.files.length < 3) {
-            return res.status(400).json({ message: "At least 3 images are required" });
-        }
-
+        // if (!req.files || productImg.length < 3) {
+        //     return res.status(400).json({ message: "At least 3 images are required" });
+        // }
 
         const newProduct = new Product({
             name,
             description,
             category,
-            price,
+            baseprice: price,
             stock,
-            images: productsImg,
-            specifications: {
-                meterial,
-                sleeveType,
-                fitType,
-                pattern
-            }
-
+            // images: productsImg,
+            specifications: { meterial, sleeveType, fitType, pattern }
         });
-        console.log("this is new product:", newProduct)
 
         const savedProduct = await newProduct.save();
 
-
-
-        console.log(variants)
-
         let variantIds = [];
-        for (let item of variants) {
+
+        
+        for (let i = 0; i < variants.length; i++) {
+            let item = variants[i];
+
             if (!item.color || !item.size || !item.price || !item.stock) {
-                let missingFields=[]
-                if (!item.color) missingFields.push("color");
-                if (!item.size) missingFields.push("size");
-                if (!item.price) missingFields.push("price");
-                if (!item.stock) missingFields.push("stock");
-                console.log(missingFields)
                 return res.status(400).json({ message: "All variant fields are required!" });
             }
+
+            
+            let variantImgPaths = variantImagesMap[i]
+                ? variantImagesMap[i].map((fullPath) => '/' + fullPath.split('public\\')[1].replace(/\\/g, '/'))
+                : [];
+
+            console.log(`Variant ${i} images before saving:`, variantImgPaths); 
 
             const newVariant = new Variant({
                 productId: savedProduct._id,
@@ -120,18 +153,20 @@ exports.postAddProduct = async (req, res) => {
                 size: item.size.trim(),
                 price: item.price,
                 stock: item.stock,
-                images: variantsImg
+                images: variantImgPaths
             });
 
-            console.log("this is new variant:", newVariant);
+            console.log("Saving Variant:", newVariant); 
+
             const savedVariant = await newVariant.save();
             variantIds.push(savedVariant._id);
         }
 
+        
         savedProduct.variants = variantIds;
         await savedProduct.save();
 
-        return res.status(201).json({ success:true, message:"Product added successfully!", product: savedProduct });
+        return res.status(201).json({ success: true, message: "Product added successfully!", product: savedProduct });
 
     } catch (error) {
         console.error("Error adding product:", error);
@@ -141,20 +176,133 @@ exports.postAddProduct = async (req, res) => {
 
 
 
-exports.editProduct = async (req,res)=>{
+exports.getEditProduct = async (req, res) => {
     try {
-        const productId = req.params.productId; 
-        console.log(productId)
-        const product = await Product.findById(productId).populate('category'); // Find product & populate category
-        const categories = await Category.find(); // Fetch all categories
+        const productId = req.params.id;
+        const product = await Product.findById(productId);
+        const variants = await Variant.find({ productId });
+        const categories = await Category.find({ isListed: true })
 
         if (!product) {
-            return res.status(404).send("Product not found");
+            res.status(404).send("Product not found")
         }
 
-        res.render("admin/editproduct", { product, categories }); // Pass data to view
+
+        res.render('admin/editproduct', { product, categories, variants,productId })
     } catch (error) {
-        console.error("Error fetching product:", error);
-        res.status(500).send("Server error")
+        console.log(error)
+        res.status(500).send('Server error')
+
     }
 }
+
+
+exports.updateEditProduct = async (req, res) => {
+    try {
+      console.log("Request Body:", req.body);
+      console.log("Request Files:", req.files);
+  
+      const { name, description, category, price, stock, variants, isListed, status, specifications } = req.body;
+      const productId = req.params.id;
+  
+      if (!productId || !name || !description || !category || !price) {
+        return res.status(400).json({ success: false, message: "Missing required fields" });
+      }
+  
+      let product = await Product.findById(productId);
+      if (!product) {
+        return res.status(404).json({ success: false, message: "Product not found" });
+      }
+  
+      product.name = name;
+      product.description = description;
+      product.category = category;
+      product.price = price;
+      product.stock = stock;
+      product.isListed = isListed === "true";
+      product.status = status;
+      product.specifications = specifications || {};
+  
+      await product.save();
+  
+    
+      if (variants && Array.isArray(variants)) {
+        for (let index = 0; index < variants.length; index++) {
+          const variant = variants[index];
+          const existingVariant = await Variant.findOne({
+            productId,
+            color: variant.color,
+            size: variant.size,
+          });
+  
+          let variantImages = existingVariant ? existingVariant.images : [];
+  
+         
+          const newImages = req.files.filter(file => file.fieldname === `variant_images_${index}[]`);
+          if (newImages.length > 0) {
+            variantImages.push(...newImages.map(file => file.filename));
+          }
+  
+         
+          const removedImages = req.body[`removed_images_${index}[]`] || [];
+          if (Array.isArray(removedImages)) {
+            variantImages = variantImages.filter(img => !removedImages.includes(img));
+            removedImages.forEach((image) => {
+              const imagePath = path.join(__dirname, "../public/uploads/products", image);
+              if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+            });
+          }
+  
+          if (existingVariant) {
+          
+            existingVariant.price = variant.price;
+            existingVariant.stock = variant.stock;
+            
+            await existingVariant.save();
+          } else {
+            
+            await Variant.create({
+              productId,
+              color: variant.color,
+              size: variant.size,
+              price: variant.price,
+              stock: variant.stock,
+              // images: variantImages,
+            });
+          }
+        }
+      }
+  
+      res.json({ success: true, message: "Product updated successfully!" });
+    } catch (error) {
+      console.error("Update Error:", error);
+      res.status(500).json({ success: false, message: "Server error" });
+    }
+  };
+
+
+
+    exports.deleteProduct = async (req, res) => {
+        try {
+          const product = await Product.findById(req.params.id);
+      
+          if (!product) {
+            return res.status(404).json({ success: false, message: "Product not found" });
+          }
+      
+          product.isListed = !product.isListed;
+          await product.save();
+      
+          res.json({
+            success: true,
+            isListed: product.isListed,
+            message: product.isListed
+              ? " Product restored successfully."
+              : " Product hidden successfully.",
+          });
+        } catch (error) {
+          console.error("Error in deleteProduct:", error); 
+          res.status(500).json({ success: false, message: "Server error occurred", error: error.message });
+        }
+      };
+      

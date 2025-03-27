@@ -2,6 +2,7 @@
       <!--  Header End -->
       <div class="container-fluid">
         <h2 class="mb-3">User Management</h2>
+        <input style="width: 400px;" type="text" id="searchInput" class="form-control" placeholder="Search Users..." value="<%= searchQuery %>">
         <table class="table table-bordered">
             <thead class="table-dark">
                 <tr>
@@ -16,7 +17,7 @@
               <% users.forEach((user) => { %>
                 <tr>
                   <td>
-                    <img src="<%= user.profileImage || 'https://via.placeholder.com/40' %>" 
+                    <img src="<%= user.profileImage || '/uploads/profile_pictures/1741413369939.webp' %>" 
                          class="rounded-circle" 
                          alt="Profile" 
                          width="40" 
@@ -35,11 +36,48 @@
               <% }) %>
             </tbody>
         </table>
+        <div class="pagination">
+          <% if (currentPage > 1) { %>
+              <a href="/admin/users?page=<%= currentPage - 1 %>&search=<%=searchQuery%>">Previous</a>
+          <% } %>
+      
+          <% for (let i = 1; i <= totalPages; i++) { %>
+              <a href="/admin/users?page=<%= i %>&search=<%=searchQuery%>" class="<%= i === currentPage ? 'active' : '' %>">
+                  <%= i %>
+              </a>
+          <% } %>
+      
+          <% if (currentPage < totalPages) { %>
+              <a href="/admin/users?page=<%= currentPage + 1 %>&search=<%=searchQuery%>">Next</a>
+          <% } %>
+      </div>
       </div>
     </div>
   </div>
 
   <script>
+     function debounce(func,delay){
+      let timer;
+      return function(){
+        const context = this, args = arguments;
+        clearTimeout(timer);
+        timer  = setTimeout(()=> func.apply(context,args),delay);
+
+      };
+    }
+
+    document.addEventListener("DOMContentLoaded",function(){
+      const searchInput = document.getElementById("searchInput");
+
+      searchInput.addEventListener("input",debounce(function(){
+        const searchQuery = this.value.trim();
+        window.location.href = `/admin/users?search=${searchQuery}`;
+      },500))
+    })
+
+
+
+
     document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".block-btn").forEach((button) => {
     button.addEventListener("click", async function () {
@@ -47,8 +85,28 @@
       const isBlocked = this.classList.contains("btn-danger"); 
       const action = isBlocked ? "block" : "unblock"; 
 
+      let reason = ""; 
       
-      const result = await Swal.fire({
+      if (action === "block") {
+        const result = await Swal.fire({
+          title: "Block User",
+          text: "Enter the reason for blocking this user:",
+          input: "text",
+          inputPlaceholder: "Reason for blocking...",
+          showCancelButton: true,
+          confirmButtonText: "Block User",
+          cancelButtonText: "Cancel",
+        });
+
+        if (!result.isConfirmed || result.value.trim() === "") {
+          Swal.fire("Error", "Please enter a valid reason for blocking.", "error");
+          return;
+        }
+
+        reason = result.value.trim();
+      }
+
+      const confirmation = await Swal.fire({
         title: `Are you sure?`,
         text: `Do you really want to ${action} this user?`,
         icon: "warning",
@@ -59,12 +117,13 @@
         cancelButtonText: "Cancel",
       });
 
-      if (!result.isConfirmed) return;
+      if (!confirmation.isConfirmed) return;
 
       try {
         const response = await fetch(`/admin/users/block/${userId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason }), // Send reason to backend
         });
 
         const data = await response.json();
@@ -73,12 +132,10 @@
           throw new Error(data.message || "Error updating user status");
         }
 
-       
         this.classList.toggle("btn-danger");
         this.classList.toggle("btn-success");
         this.textContent = data.isBlocked ? "Unblock" : "Block";
 
-        
         Swal.fire({
           title: "Success!",
           text: `User has been ${data.isBlocked ? "blocked" : "unblocked"} successfully.`,
@@ -93,6 +150,7 @@
     });
   });
 });
+
 
 
 

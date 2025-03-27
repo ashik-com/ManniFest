@@ -5,10 +5,10 @@
                 <div class="single_footer_part">
                     <h4>Top Products</h4>
                     <ul class="list-unstyled">
-                        <li><a href="">Managed Website</a></li>
-                        <li><a href="">Manage Reputation</a></li>
-                        <li><a href="">Power Tools</a></li>
-                        <li><a href="">Marketing Service</a></li>
+                        <li><a href="">Shirts</a></li>
+                        <li><a href="">Pants</a></li>
+                        <li><a href="">Hoodies</a></li>
+                        
                     </ul>
                 </div>
             </div>
@@ -120,8 +120,82 @@ Copyright &copy;<script>document.write(new Date().getFullYear());</script> All r
 <!-- custom js -->
 <script src="/aranoz-master/js/custom.js"></script>
 
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+//     document.addEventListener("DOMContentLoaded", () => {
+//     const sidebarLinks = document.querySelectorAll(".profile-sidebar a");
+//     const contentContainer = document.querySelector(".profile-main-content");
+
+//     sidebarLinks.forEach(link => {
+//         link.addEventListener("click", (e) => {
+//             e.preventDefault(); // Stop default navigation
+
+//             // Handle Logout Separately
+//             if (link.classList.contains("profile-logout")) {
+//                 Swal.fire({
+//                     title: "Logout",
+//                     text: "Are you sure you want to logout?",
+//                     icon: "warning",
+//                     showCancelButton: true,
+//                     confirmButtonText: "Yes, Logout",
+//                     cancelButtonText: "Cancel"
+//                 }).then((result) => {
+//                     if (result.isConfirmed) {
+//                         window.location.href = "/logout";
+//                     }
+//                 });
+//                 return;
+//             }
+
+//             // Remove active class from all links & add to the clicked one
+//             sidebarLinks.forEach(item => item.classList.remove("profile-active"));
+//             link.classList.add("profile-active");
+
+//             const path = link.href.replace(window.location.origin, '');
+//             console.log("Loading: ", path);
+
+//             // Show Loading Indicator
+//             contentContainer.innerHTML = `<div class="loading-spinner">Loading...</div>`;
+
+//             fetch(path, {
+//                 method: "GET",
+//                 headers: {
+//                     "X-Requested-With": "XMLHttpRequest"
+//                 }
+//             })
+//                 .then(response => {
+//                     if (!response.ok) {
+//                         throw new Error(`HTTP error! Status: ${response.status}`);
+//                     }
+//                     return response.text();
+//                 })
+//                 .then(data => {
+//                     contentContainer.innerHTML = data;
+//                 })
+//                 .catch(error => {
+//                     console.error("Error loading page:", error);
+//                     contentContainer.innerHTML = `<div class="error-message">Failed to load content. Please try again.</div>`;
+//                 });
+//         });
+//     });
+// });
+
+function loadSection(section) {
+    fetch(`/profile/${section}`)
+        .then(res => res.text())
+        .then(html => {
+            document.getElementById("content").innerHTML = html;
+        })
+        .catch(err => console.error("Error loading section:", err));
+}
+
+</script>
 </body>
 
 </html>

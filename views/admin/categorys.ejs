@@ -1,10 +1,11 @@
+<!-- views/admin/categories.ejs -->
 <%- include('../admin/partials/header') %>
-      <!--  Header End -->
-      <div class="container-fluid">
-        <div class="card">
-          <div class="card-body">
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2>Category Management</h2>
+                <input style="width: 400px;" type="text" id="searchInput" class="form-control" placeholder="Search categories..." value="<%= searchQuery %>">
                 <a href="/admin/addcategorys" class="btn btn-success">+ Add Category</a>
             </div>
             <div class="card">
@@ -15,150 +16,220 @@
                             <th>Category</th>
                             <th>Category Description</th>
                             <th>Created At</th>
+                            <th>Offer Details</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="categoryTableBody">
                         <% categorys.forEach((category, index) => { %>
-                          <tr id="categoryRow-<%= category._id %>">
+                        <tr id="categoryRow-<%= category._id %>">
                             <td><%= index + 1 %></td>
                             <td class="category-name"><%= category.name %></td>
                             <td class="category-description"><%= category.description %></td>
                             <td><%= category.createdAt.toISOString().split('T')[0] %></td>
-                            <td>
-                              <span class="<%= category.isListed ? 'text-success' : 'text-danger' %>">
-                                <%= category.isListed ? 'Active' : 'Hidden' %>
-                              </span>
+                            <td class="offer-details">
+                                <% if (category.offer) { %>
+                                    <%= category.offer.discountType === 'percentage' ? category.offer.discountValue + '%' : '₹' + category.offer.discountValue %> 
+                                    (<%= category.offer.startDate.toISOString().split('T')[0] %> to <%= category.offer.endDate.toISOString().split('T')[0] %>)
+                                <% } else { %>
+                                    No Offer
+                                <% } %>
                             </td>
                             <td>
-                              <!-- Edit Button -->
-                              <button class="btn btn-sm btn-primary edit-category-btn"
-                                data-id="<%= category._id %>"
-                                data-name="<%= category.name %>"
-                                data-description="<%= category.description %>">
-                                Edit
-                              </button>
-
-                              <!-- Toggle Hide/Restore Button -->
-                              <button class="btn btn-sm <%= category.isListed ? 'btn-danger' : 'btn-success' %> toggle-category-btn"
-                                data-id="<%= category._id %>">
-                                <%= category.isListed ? 'Hide' : 'Restore' %>
-                              </button>
+                                <span class="<%= category.isListed ? 'text-success' : 'text-danger' %>">
+                                    <%= category.isListed ? 'Active' : 'Hidden' %>
+                                </span>
                             </td>
-                          </tr>
+                            <td>
+                                <button class="btn btn-sm btn-primary edit-category-btn"
+                                    data-id="<%= category._id %>"
+                                    data-name="<%= category.name %>"
+                                    data-description="<%= category.description %>">
+                                    Edit
+                                </button>
+                                <button class="btn btn-sm <%= category.isListed ? 'btn-danger' : 'btn-success' %> toggle-category-btn"
+                                    data-id="<%= category._id %>">
+                                    <%= category.isListed ? 'Hide' : 'Restore' %>
+                                </button>
+                                <% if (category.offer) { %>
+                                    <a href="/admin/edit-category-offer/<%= category.offer._id %>" class="btn btn-sm btn-warning">Edit Offer</a>
+                                    <button class="btn btn-sm btn-danger delete-offer-btn" data-id="<%= category.offer._id %>">Delete Offer</button>
+                                <% } else { %>
+                                    <a href="/admin/addcategoryoffer/<%= category._id %>" class="btn btn-sm btn-primary">Add Offer</a>
+                                <% } %>
+                            </td>
+                        </tr>
                         <% }) %>
-                      </tbody>
+                    </tbody>
                 </table>
+                <div class="pagination">
+                    <% if (currentPage > 1) { %>
+                        <a href="/admin/categorys?page=<%= currentPage - 1 %>&search=<%= searchQuery %>">Previous</a>
+                    <% } %>
+                    <% for (let i = 1; i <= totalPages; i++) { %>
+                        <a href="/admin/categorys?page=<%= i %>&search=<%= searchQuery %>" class="<%= i === currentPage ? 'active' : '' %>">
+                            <%= i %>
+                        </a>
+                    <% } %>
+                    <% if (currentPage < totalPages) { %>
+                        <a href="/admin/categorys?page=<%= currentPage + 1 %>&search=<%= searchQuery %>">Next</a>
+                    <% } %>
+                </div>
             </div>
-          </div>
         </div>
-      </div>
     </div>
-  </div>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    function debounce(func, delay) {
+        let timer;
+        return function () {
+            const context = this, args = arguments;
+            clearTimeout(timer);
+            timer = setTimeout(() => func.apply(context, args), delay);
+        };
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
-      // Toggle Hide/Restore Category
-      document.querySelectorAll(".toggle-category-btn").forEach((button) => {
-        button.addEventListener("click", async function () {
-          const categoryId = this.getAttribute("data-id");
-          const action = this.textContent.trim() === "Hide" ? "hide" : "restore";
+        const searchInput = document.getElementById("searchInput");
+        searchInput.addEventListener("input", debounce(function () {
+            const searchQuery = this.value.trim();
+            window.location.href = `/admin/categorys?search=${searchQuery}`;
+        }, 500));
 
-          const confirmAction = await Swal.fire({
-            title: "Are you sure?",
-            text: `Do you want to ${action} this category?`,
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: "Yes",
-            cancelButtonText: "No",
-          });
+        // Toggle Category
+        document.querySelectorAll(".toggle-category-btn").forEach((button) => {
+            button.addEventListener("click", async function () {
+                const categoryId = this.getAttribute("data-id");
+                const action = this.textContent.trim() === "Hide" ? "hide" : "restore";
 
-          if (!confirmAction.isConfirmed) return;
+                const confirmAction = await Swal.fire({
+                    title: "Are you sure?",
+                    text: `Do you want to ${action} this category?`,
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Yes",
+                    cancelButtonText: "No",
+                });
 
-          try {
-            const response = await fetch(`/admin/softDeleteCategory/${categoryId}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
+                if (!confirmAction.isConfirmed) return;
+
+                try {
+                    const response = await fetch(`/admin/softDeleteCategory/${categoryId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        this.classList.toggle("btn-danger");
+                        this.classList.toggle("btn-success");
+                        this.textContent = result.isListed ? "Hide" : "Restore";
+                        const statusCell = this.closest("tr").querySelector("td:nth-child(6) span");
+                        statusCell.textContent = result.isListed ? "Active" : "Hidden";
+                        statusCell.classList.toggle("text-success");
+                        statusCell.classList.toggle("text-danger");
+                        Swal.fire("Success!", result.message, "success");
+                    } else {
+                        Swal.fire("Error!", result.message || "Something went wrong", "error");
+                    }
+                } catch (error) {
+                    Swal.fire("Error!", "Network error occurred!", "error");
+                }
             });
-
-            const result = await response.json();
-
-            if (response.ok) {
-              // Update button and text dynamically
-              this.classList.toggle("btn-danger");
-              this.classList.toggle("btn-success");
-              this.textContent = result.isListed ? "Hide" : "Restore";
-
-              // Update status text
-              const statusCell = this.closest("tr").querySelector("td:nth-child(5) span");
-              statusCell.textContent = result.isListed ? "Active" : "Hidden";
-              statusCell.classList.toggle("text-success");
-              statusCell.classList.toggle("text-danger");
-
-              Swal.fire("Success!", result.message, "success");
-            } else {
-              Swal.fire("Error!", result.message || "Something went wrong", "error");
-            }
-          } catch (error) {
-            Swal.fire("Error!", "Network error occurred!", "error");
-          }
         });
-      });
 
-      // Edit Category
-      document.querySelectorAll(".edit-category-btn").forEach((button) => {
-        button.addEventListener("click", async function () {
-          const categoryId = this.getAttribute("data-id");
-          const currentName = this.getAttribute("data-name");
-          const currentDescription = this.getAttribute("data-description");
+        // Edit Category
+        document.querySelectorAll(".edit-category-btn").forEach((button) => {
+            button.addEventListener("click", async function () {
+                const categoryId = this.getAttribute("data-id");
+                const currentName = this.getAttribute("data-name");
+                const currentDescription = this.getAttribute("data-description");
 
-          const { value: formValues } = await Swal.fire({
-            title: "Edit Category",
-            html: `
-              <input id="swal-category-name" class="swal2-input" value="${currentName}" placeholder="Category Name">
-              <input id="swal-category-description" class="swal2-input" value="${currentDescription}" placeholder="Category Description">
-            `,
-            focusConfirm: false,
-            showCancelButton: true,
-            confirmButtonText: "Update",
-            preConfirm: () => {
-              return {
-                name: document.getElementById("swal-category-name").value.trim(),
-                description: document.getElementById("swal-category-description").value.trim(),
-              };
-            },
-          });
+                const { value: formValues } = await Swal.fire({
+                    title: "Edit Category",
+                    html: `
+                        <input id="swal-category-name" class="swal2-input" value="${currentName}" placeholder="Category Name">
+                        <input id="swal-category-description" class="swal2-input" value="${currentDescription}" placeholder="Category Description">
+                    `,
+                    focusConfirm: false,
+                    showCancelButton: true,
+                    confirmButtonText: "Update",
+                    preConfirm: () => {
+                        return {
+                            name: document.getElementById("swal-category-name").value.trim(),
+                            description: document.getElementById("swal-category-description").value.trim(),
+                        };
+                    },
+                });
 
-          if (!formValues || !formValues.name) return;
+                if (!formValues || !formValues.name) return;
 
-          try {
-            const response = await fetch(`/admin/editCategory/${categoryId}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(formValues),
+                try {
+                    const response = await fetch(`/admin/editCategory/${categoryId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(formValues),
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        const row = document.getElementById(`categoryRow-${categoryId}`);
+                        row.querySelector(".category-name").textContent = formValues.name;
+                        row.querySelector(".category-description").textContent = formValues.description;
+                        Swal.fire("Success!", "Category updated successfully!", "success");
+                    } else {
+                        Swal.fire("Error!", result.message || "Something went wrong", "error");
+                    }
+                } catch (error) {
+                    Swal.fire("Error!", "Network error occurred!", "error");
+                }
             });
-
-            const result = await response.json();
-
-            if (response.ok) {
-              // Update UI without reloading
-              const row = document.getElementById(`categoryRow-${categoryId}`);
-              row.querySelector(".category-name").textContent = formValues.name;
-              row.querySelector(".category-description").textContent = formValues.description;
-
-              Swal.fire("Success!", "Category updated successfully!", "success");
-            } else {
-              Swal.fire("Error!", result.message || "Something went wrong", "error");
-            }
-          } catch (error) {
-            Swal.fire("Error!", "Network error occurred!", "error");
-          }
         });
-      });
+
+        // Delete Offer
+        document.querySelectorAll(".delete-offer-btn").forEach((button) => {
+            button.addEventListener("click", async function () {
+                const offerId = this.getAttribute("data-id");
+                const categoryId = this.closest("tr").id.split('-')[1];
+
+                const confirmDelete = await Swal.fire({
+                    title: "Are you sure?",
+                    text: "Do you want to delete this offer?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Yes, delete it",
+                    cancelButtonText: "No",
+                });
+
+                if (!confirmDelete.isConfirmed) return;
+
+                try {
+                    const response = await fetch(`/admin/delete-offer/${offerId}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        const row = this.closest("tr");
+                        row.querySelector(".offer-details").textContent = "No Offer";
+                        this.previousElementSibling.remove(); 
+                        this.remove(); 
+                        row.querySelector("td:last-child").insertAdjacentHTML('beforeend', 
+                            `<a href="/admin/addcategoryoffer/${categoryId}" class="btn btn-sm btn-primary">Add Offer</a>`
+                        );
+                        Swal.fire("Success!", result.message, "success");
+                    } else {
+                        Swal.fire("Error!", result.message || "Failed to delete offer", "error");
+                    }
+                } catch (error) {
+                    Swal.fire("Error!", "Network error occurred!", "error");
+                }
+            });
+        });
     });
-  </script>
-
-  <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
-  <%- include('../admin/partials/footer') %>
+</script>
+<%- include('../admin/partials/footer') %>

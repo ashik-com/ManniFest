@@ -1,96 +1,207 @@
 <%- include('../admin/partials/header') %>
-      <!--  Header End -->
-      <div class="container-fluid">
+    <!--  Header End -->
+    <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h2>Product Management</h2>
+            <input style="width: 400px;" type="text" id="searchInput" class="form-control"
+                placeholder="Search products..." value="<%= searchQuery %>">
             <a href="/admin/AddProduct" class="btn btn-success">+ Add Product</a>
         </div>
-            <table class="table  table-bordered">
-                <thead class="table-dark">
+
+
+        <table class="table  table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Product Image</th>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Available Colors</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% products.forEach(product=> { %>
                     <tr>
-                        <th>Product Image</th>
-                        <th>Product Name</th>
-                        <th>Category</th>
-                        <th>Price</th>
-                        <th>Stock</th>
-                        <th>Available Colors</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% products.forEach(product => { %>
-                        <tr>
-                            <td>
-                                <% if (product.images && product.images.length > 0) { %>
-                                    <img src="<%= product.images[0] %>" class="rounded" alt="Product" width="50">
+                        <td>
+                            <% if (product?.variants && product?.variants[0]?.images.length> 0) { %>
+                                <img src="<%= product?.variants[0]?.images[0] %>" class="rounded" alt="Product"
+                                    width="50">
                                 <% } else { %>
                                     <img src="https://via.placeholder.com/50" class="rounded" alt="No Image">
-                                <% } %>
-                            </td>
-                            <td><%= product.name %></td>
-                            <td><%= product.category ? product.category.name : 'Uncategorized' %></td>
-                            
-                            <td>
-                                <% if (product.variants && product.variants.length > 0) { %>
-                                    <% product.variants.forEach(variant => { %>
-                                        $<%= variant.price %> <br>
-                                    <% }) %>
-                                <% } else { %>
-                                    <span class="text-muted">No Variant</span>
-                                <% } %>
-                            </td>
-                
-                            <td>
-                                <% let totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0); %>
+                                    <% } %>
+                        </td>
+                        <td>
+                            <%= product.name %>
+                        </td>
+                        <td>
+                            <%= product.category ? product.category.name : 'Uncategorized' %>
+                        </td>
+
+                        <td>
+                            <% if (product.variants && product.variants.length> 0) { %>
+                                <% product.variants.forEach(variant=> { %>
+                                    $<%= variant.price %> <br>
+                                        <% }) %>
+                                            <% } else { %>
+                                                <span class="text-muted">No Variant</span>
+                                                <% } %>
+                        </td>
+
+                        <td>
+                            <% let totalStock=product.variants.reduce((sum, v)=> sum + v.stock, 0); %>
                                 <%= totalStock %>
-                            </td>
-                
-                            <td>
-                                <% if (product.variants && product.variants.length > 0) { %>
-                                    <% product.variants.forEach(variant => { %>
-                                        <span class="badge" style="background-color:<%= variant.color %>;">
-                                            <%= variant.color %>
-                                        </span>
+                        </td>
+
+                        <td>
+                            <% if (product.variants && product.variants.length> 0) { %>
+                                <% product.variants.forEach(variant=> { %>
+                                    <span class="badge" style="background-color:<%= variant.color %>;">
+                                        <%= variant.color %>
+                                    </span>
                                     <% }) %>
+                                        <% } else { %>
+                                            <span class="text-muted">No colors</span>
+                                            <% } %>
+                        </td>
+
+                        <!-- Inside the <tbody> loop -->
+                            <td>
+                                <button class="btn btn-primary btn-sm edit-product" 
+                                    data-id="<%= product._id %>">Edit</button>
+                                <button 
+                                    class="btn btn-sm <%= product.isListed ? 'btn-danger' : 'btn-success' %> toggle-product-btn" 
+                                    data-id="<%= product._id %>">
+                                    <%= product.isListed ? 'Hide' : 'Restore' %>
+                                </button>
+                                <% if (product.hasOffer) { %>
+                                    <a href="/admin/editproductoffer/<%= product._id %>" 
+                                       class="btn btn-warning btn-sm">Edit Offer</a>
                                 <% } else { %>
-                                    <span class="text-muted">No colors</span>
+                                    <a href="/admin/addproductoffer/<%= product._id %>" 
+                                       class="btn btn-primary btn-sm">Add Offer</a>
                                 <% } %>
                             </td>
-                
-                            <td>
-                                <button class="btn btn-primary btn-sm edit-product"   data-id="<%= product._id %>">Edit</button>
-                                <button class="btn btn-danger btn-sm">Delete</button>
-                                <button class="btn btn-primary btn-sm">Add Offer</button>
-                            </td>
-                        </tr>
+                    </tr>
                     <% }) %>
-                </tbody>
-                
-            </table>
-      </div>
+            </tbody>
+
+        </table>
+        <div class="pagination">
+            <% if (currentPage> 1) { %>
+                <a href="/admin/products?page=<%= currentPage - 1 %>&search=<%= searchQuery %>">Previous</a>
+                <% } %>
+
+                    <% for (let i=1; i <=totalPages; i++) { %>
+                        <a href="/admin/products?page=<%= i %>&search=<%=searchQuery%>"
+                            class="<%= i === currentPage ? 'active' : '' %>">
+                            <%= i %>
+                        </a>
+                        <% } %>
+
+                            <% if (currentPage < totalPages) { %>
+                                <a href="/admin/products?page=<%= currentPage + 1 %>&search=<%=searchQuery%>">Next</a>
+                                <% } %>
+        </div>
     </div>
-  </div>
+    </div>
+    </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
 
-<script>
-    document.addEventListener("DOMContentLoaded",function () {
-        document.querySelectorAll(".edit-product").forEach(button => {
-            button.addEventListener("click",function () {
-                const productId = this.getAttribute("data-id")
 
-                if (productId) {
-                window.location.href = `/admin/editproduct/${productId}`;
-            } else {
-                console.error("Product ID not found!");
-            }
-            
-            })
-            
+
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+    <script>
+
+        function debounce(func, delay) {
+            let timer;
+            return function () {
+                const context = this, args = arguments;
+                clearTimeout(timer);
+                timer = setTimeout(() => func.apply(context, args), delay);
+            };
+
+        }
+        document.addEventListener("DOMContentLoaded", function () {
+            const searchInput = document.getElementById("searchInput");
+
+            searchInput.addEventListener("input", debounce(function () {
+                const searchQuery = this.value.trim();
+                window.location.href = `/admin/products?search=${searchQuery}`;
+
+            }, 500));
+
         });
-    })
 
-</script>
 
-</body>
-<%- include('../admin/partials/footer') %>
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll(".edit-product").forEach(button => {
+                button.addEventListener("click", function () {
+                    const productId = this.getAttribute("data-id");
+                    if (productId) {
+                        window.location.href = `/admin/edit-Product/${productId}`;
+                    } else {
+                        console.error("Product ID not found!");
+                    }
+                });
+            });
+        });
+
+
+
+
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll(".toggle-product-btn").forEach((button) => {
+                button.addEventListener("click", async function () {
+                    const productId = this.getAttribute("data-id");
+                    const action = this.textContent.trim() === "Hide" ? "hide" : "restore";
+
+                    const confirmAction = await Swal.fire({
+                        title: "Are you sure?",
+                        text: `Do you want to ${action} this Product?`,
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonText: "Yes",
+                        cancelButtonText: "No",
+                    });
+
+                    if (!confirmAction.isConfirmed) return;
+
+                    try {
+                        const response = await fetch(`/admin/productdelete/${productId}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+
+                            this.classList.toggle("btn-danger");
+                            this.classList.toggle("btn-success");
+                            this.textContent = result.isListed ? "Hide" : "Restore";
+
+
+
+                            Swal.fire("Success!", result.message, "success");
+                        } else {
+                            Swal.fire("Error!", result.message || "Something went wrong", "error");
+                        }
+                    } catch (error) {
+                        Swal.fire("Error!", "Network error4 occurred!", "error");
+                    }
+                });
+            });
+        })
+
+    </script>
+
+    </body>
+    <%- include('../admin/partials/footer') %>

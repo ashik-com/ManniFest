@@ -1,2 +1,27 @@
+<script>
+    document.getElementById("logout-btn").addEventListener("click", () => {
+
+        
+            fetch("/admin/logout", {
+                method: "POST",
+                credentials: "include",
+            }).then(response => {
+                if (response.ok) {
+                    window.location.href = "/admin/login"
+                } else {
+                    console.error('Logout Failes')
+                }
+
+            }).catch(error => {
+                console.error("Error during logout:", error)
+
+            })
+        
+    })
+
+</script>
+
+
 </body>
+
 </html>

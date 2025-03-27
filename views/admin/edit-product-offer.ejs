@@ -1,0 +1,158 @@
+<%- include('../admin/partials/header') %>
+<div class="container-fluid">
+    <h2>Edit Product Offer</h2>
+    
+    <% if (error) { %>
+        <div class="alert alert-danger"><%= error %></div>
+    <% } %>
+
+    <div class="card">
+        <div class="card-body">
+            <!-- Remove the form tag, use plain HTML with IDs -->
+            <div id="offerForm">
+                <div class="mb-3">
+                    <label class="form-label">Product Name</label>
+                    <input type="text" class="form-control" value="<%= product.name %>" disabled>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Category</label>
+                    <input type="text" class="form-control" 
+                           value="<%= product.category ? product.category.name : 'Uncategorized' %>" disabled>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Discount Type</label>
+                    <select id="discountType" class="form-select" required>
+                        <option value="percentage" <%= offer.discountType === 'percentage' ? 'selected' : '' %>>
+                            Percentage
+                        </option>
+                        <option value="fixed" <%= offer.discountType === 'fixed' ? 'selected' : '' %>>
+                            Fixed Amount
+                        </option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Discount Value</label>
+                    <input type="number" id="discountValue" class="form-control" 
+                           value="<%= offer.discountValue %>" required min="1">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" id="startDate" class="form-control" 
+                           value="<%= offer.startDate.toISOString().split('T')[0] %>" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">End Date</label>
+                    <input type="date" id="endDate" class="form-control" 
+                           value="<%= offer.endDate.toISOString().split('T')[0] %>" required>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button id="updateOfferBtn" class="btn btn-primary">Update Offer</button>
+                    <a href="/admin/products" class="btn btn-secondary">Cancel</a>
+                    <button type="button" class="btn btn-danger" id="deleteOfferBtn">Delete Offer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Update offer with AJAX fetch
+        document.getElementById('updateOfferBtn').addEventListener('click', async function() {
+            const result = await Swal.fire({
+                title: 'Are you sure?',
+                text: 'Do you want to update this offer?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes',
+                cancelButtonText: 'No'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const discountType = document.getElementById('discountType').value;
+                    const discountValue = document.getElementById('discountValue').value;
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+
+                    const response = await fetch('/admin/editproductoffer/<%= product._id %>', {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            discountType,
+                            discountValue,
+                            startDate,
+                            endDate
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        await Swal.fire({
+                            title: 'Success!',
+                            text: 'Offer successfully updated',
+                            icon: 'success',
+                            confirmButtonText: 'OK'
+                        });
+                        window.location.href = '/admin/products';
+                    } else {
+                        Swal.fire('Error!', data.message || 'Failed to update the offer.', 'error');
+                    }
+                } catch (error) {
+                    Swal.fire('Error!', 'An error occurred while updating the offer.', 'error');
+                }
+            }
+        });
+
+        // Delete offer functionality (unchanged)
+        document.getElementById('deleteOfferBtn').addEventListener('click', async function() {
+            const result = await Swal.fire({
+                title: 'Are you sure?',
+                text: 'This will permanently delete the offer. This action cannot be undone!',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it',
+                cancelButtonText: 'No',
+                confirmButtonColor: '#d33'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const response = await fetch('/admin/editproductoffer/<%= product._id %>', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        await Swal.fire({
+                            title: 'Deleted!',
+                            text: 'The offer has been permanently deleted.',
+                            icon: 'success',
+                            confirmButtonText: 'OK'
+                        });
+                        window.location.href = '/admin/products';
+                    } else {
+                        Swal.fire('Error!', data.error || 'Failed to delete the offer.', 'error');
+                    }
+                } catch (error) {
+                    Swal.fire('Error!', 'An error occurred while deleting the offer.', 'error');
+                }
+            }
+        });
+    });
+</script>
+<%- include('../admin/partials/footer') %>

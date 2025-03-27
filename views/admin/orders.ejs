@@ -1,0 +1,188 @@
+<%- include('../admin/partials/header') %>
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Order Management</h2>
+        <input style="width: 400px;" type="text" id="searchOrder" class="form-control" placeholder="Search orders...">
+    </div>
+    
+    <table class="table table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Customer Email</th>
+                <th>Product</th>
+                <th>Variant</th>
+                <th>Price</th>
+                <th>Quantity</th>
+                <th>Order Status</th>
+                <th>Payment Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="orderTableBody">
+            <% orders.forEach(order => { %>
+                <% order.items.forEach((item, index) => { %>
+                <tr>
+                    <td><%= order.userEmail || 'N/A' %></td>
+                    <td>
+                        <%= item.productName %>
+                        <% if (item.returnRequested && !item.returned) { %>
+                            <span class="badge bg-warning text-dark ms-2">!</span>
+                        <% } %>
+                    </td>
+                    <td><%= item.variantColor %> / <%= item.variantSize %></td>
+                    <td>₹<%= item.price.toFixed(2) %></td>
+                    <td><%= item.quantity %></td>
+                    <td>
+                        <% if (item.cancelled) { %>
+                            <span class="badge bg-danger">Cancelled</span>
+                        <% } else { %>
+                            <span class="badge <%= order.orderStatus === 'Cancelled' ? 'bg-danger' : order.orderStatus === 'Delivered' ? 'bg-success' : 'bg-info' %>">
+                                <%= order.orderStatus %>
+                            </span>
+                        <% } %>
+                    </td>
+                    <td>
+                        <span class="badge <%= order.paymentStatus === 'Pending' ? 'bg-warning' : order.paymentStatus === 'Paid' ? 'bg-success' : order.paymentStatus === 'Failed' ? 'bg-danger' : 'bg-info' %>">
+                            <%= order.paymentStatus %>
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-primary btn-sm view-order" data-order-id="<%= order._id %>">View</button>
+                        <% if (item.returnRequested && !item.returned) { %>
+                            <button class="btn btn-success btn-sm approve-return" data-order-id="<%= order._id %>" data-item-index="<%= index %>">Approve</button>
+                            <button class="btn btn-danger btn-sm reject-return" data-order-id="<%= order._id %>" data-item-index="<%= index %>">Decline</button>
+                        <% } %>
+                    </td>
+                </tr>
+                <% }) %>
+            <% }) %>
+        </tbody>
+    </table>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Search functionality remains unchanged
+        document.getElementById("searchOrder").addEventListener("input", debounce(function () {
+            const query = this.value.trim();
+            window.location.href = `/admin/orders?search=${query}`;
+        }, 500));
+
+        // View order details remains unchanged
+        document.querySelectorAll(".view-order").forEach(button => {
+            button.addEventListener("click", function () {
+                const orderId = this.getAttribute("data-order-id");
+                window.location.href = `/admin/order-details/${orderId}`;
+            });
+        });
+
+        // Approve return with SweetAlert
+        document.querySelectorAll(".approve-return").forEach(button => {
+            button.addEventListener("click", async function () {
+                const orderId = this.getAttribute("data-order-id");
+                const itemIndex = this.getAttribute("data-item-index");
+
+                const result = await Swal.fire({
+                    title: 'Are you sure?',
+                    text: "Do you want to approve this return?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Yes, Approve It'
+                });
+
+                if (result.isConfirmed) {
+                    try {
+                        const response = await fetch(`/admin/approve-return-item/${orderId}/${itemIndex}`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" }
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: result.message || 'Return approved and stock updated!',
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error!',
+                                text: result.message || 'Failed to approve return.',
+                            });
+                        }
+                    } catch (error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: 'Network error occurred!',
+                        });
+                    }
+                }
+            });
+        });
+
+        // Reject return with SweetAlert
+        document.querySelectorAll(".reject-return").forEach(button => {
+            button.addEventListener("click", async function () {
+                const orderId = this.getAttribute("data-order-id");
+                const itemIndex = this.getAttribute("data-item-index");
+
+                const result = await Swal.fire({
+                    title: 'Are you sure?',
+                    text: "Do you want to decline this return?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Yes, Decline It'
+                });
+
+                if (result.isConfirmed) {
+                    try {
+                        const response = await fetch(`/admin/reject-return-item/${orderId}/${itemIndex}`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" }
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: result.message || 'Return request declined!',
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error!',
+                                text: result.message || 'Failed to decline return.',
+                            });
+                        }
+                    } catch (error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: 'Network error occurred!',
+                        });
+                    }
+                }
+            });
+        });
+    });
+
+    function debounce(func, delay) {
+        let timer;
+        return function () {
+            const context = this, args = arguments;
+            clearTimeout(timer);
+            timer = setTimeout(() => func.apply(context, args), delay);
+        };
+    }
+</script>
+<%- include('../admin/partials/footer') %>

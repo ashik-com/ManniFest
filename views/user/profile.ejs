@@ -1,0 +1,689 @@
+<%- include ('../user/partials/header', {name:name})%>
+    <div class="profile-container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-12 profile-sidebar">
+                <a href="/user/profile" class="profile-active">Overview</a>
+                <a href="/user/orders">My Orders</a>
+                <a href="/user/payments">My Payments</a>
+                <a href="/user/wallet">My Wallet</a>
+                <a href="/user/addresses">My Addresses</a>
+                <a href="/user/edit-profile">My Profile</a>
+                <a href="/user/logout" class="profile-logout">Logout</a>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-12 profile-main-content">
+                <div class="row g-3">
+                    <!-- Profile Card -->
+                    <div class="col-md-6 col-12">
+                        <div class="profile-card">
+                            <div class="profile-avatar">
+                                <% if (user?.profileImage) { %>
+                                    <img src="<%= user.profileImage %>" alt="Profile Picture" class="profile-img">
+                                    <% } else { %>
+                                        <span>
+                                            <%= user?.name?.charAt(0)?.toUpperCase() %>
+                                        </span>
+                                        <% } %>
+                            </div>
+                            <h3 class="mb-2">
+                                <%= user?.name || "Guest" %>
+                            </h3>
+                            <p class="text-muted mb-1">
+                                <%= user?.email || "No email provided" %>
+                            </p>
+                            <p class="text-muted mb-3">
+                                Phone: <%= user?.phone ? user.phone : "N/A" %>
+                            </p>
+
+                        </div>
+                    </div>
+
+
+                    <!-- Membership Card -->
+                    <div class="col-md-6 col-12">
+                        <div class="profile-membership-card">
+                            <h3 class="mb-2">Premium Membership</h3>
+                            <p class="text-muted mb-3">Upgrade to the premium experience now</p>
+                            <div class="profile-feature-icons d-flex justify-content-center">
+                                <img src="https://img.icons8.com/ios-filled/30/000000/delivery.png"
+                                    class="profile-feature-icon" alt="Free Shipping">
+                                <img src="https://img.icons8.com/ios-filled/30/000000/fast--v1.png"
+                                    class="profile-feature-icon" alt="Early Access">
+                                <img src="https://img.icons8.com/ios-filled/30/000000/gift.png"
+                                    class="profile-feature-icon" alt="VIP Support">
+                            </div>
+                            <button class="profile-get-membership mt-3">GET MEMBERSHIP</button>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Cards -->
+                    <div class="col-md-3 col-6">
+                        <div class="profile-dashboard-card">
+                            <img src="https://img.icons8.com/ios-filled/30/000000/shopping-bag.png" alt="Orders">
+                            <h6 class="profile-card-title">My Orders</h6>
+                            <p class="profile-card-text">
+                                <%= user?.orders?.length %> Orders
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 col-6">
+                        <div class="profile-dashboard-card">
+                            <img src="https://img.icons8.com/ios-filled/30/000000/credit-card.png" alt="Payments">
+                            <h6 class="profile-card-title">My Payments</h6>
+                            <p class="profile-card-text">Manage Payments</p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 col-6">
+                        <div class="profile-dashboard-card">
+                            <img src="https://img.icons8.com/ios-filled/30/000000/wallet.png" alt="Wallet">
+                            <h6 class="profile-card-title">My Wallet</h6>
+                            <p class="profile-card-text">$<%= user?.wallet_balance?.toFixed(2) %>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 col-6">
+                        <div class="profile-dashboard-card">
+                            <img src="https://img.icons8.com/ios-filled/30/000000/map-marker.png" alt="Addresses">
+                            <h6 class="profile-card-title">My Addresses</h6>
+                            <p class="profile-card-text">
+                                <%= user?.addresses?.length %> Addresses
+                            </p>
+                        </div>
+                    </div>
+
+                   
+
+                   
+                </div>
+            </div>
+        </div>
+    </div>
+<!-- Add Razorpay SDK (optional: move to profile.ejs if loaded globally) -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<!-- Add SweetAlert2 CDN (optional: move to profile.ejs if loaded globally) -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Define wallet initialization function (could also be in wallet.js)
+        function initializeWallet() {
+            const addMoneyBtn = document.getElementById("addMoneyBtn");
+    
+            // Dependency checks
+            if (!addMoneyBtn) {
+                console.error("Critical DOM element missing: addMoneyBtn");
+                Swal.fire("Error", "Wallet setup failed. Please refresh.", "error");
+                return;
+            }
+    
+            if (typeof Razorpay === "undefined") {
+                console.error("Razorpay SDK not loaded");
+                Swal.fire("Error", "Payment service unavailable. Please try again later.", "error");
+                return;
+            }
+    
+            if (typeof Swal === "undefined") {
+                console.error("SweetAlert2 not loaded");
+                Swal.fire("Error", "UI component unavailable. Please try again later.", "error");
+                return;
+            }
+    
+            // Validation function
+            function validateAmount(amount) {
+                const minAmount = 10;
+                const maxAmount = 50000;
+                amount = Number(amount);
+    
+                if (isNaN(amount)) return "Please enter an amount.";
+                if (amount <= 0) return "Amount must be greater than zero.";
+                if (!Number.isInteger(amount)) return "Amount must be a whole number.";
+                if (amount < minAmount) return `Amount must be at least ₹${minAmount}.`;
+                if (amount > maxAmount) return `Amount cannot exceed ₹${maxAmount}.`;
+                return null; // No error
+            }
+    
+            // Handle Add Money button click with SweetAlert2
+            addMoneyBtn.addEventListener("click", async function () {
+                const { value: amount } = await Swal.fire({
+                    title: "Add Money to Wallet",
+                    input: "number",
+                    inputLabel: "Enter Amount (₹)",
+                    inputPlaceholder: "Enter amount",
+                    inputAttributes: {
+                        min: "10",
+                        step: "1",
+                        required: "true"
+                    },
+                    showCancelButton: true,
+                    confirmButtonText: "Add Money",
+                    cancelButtonText: "Cancel",
+                    inputValidator: (value) => validateAmount(value),
+                    customClass: {
+                        confirmButton: "btn btn-primary",
+                        cancelButton: "btn btn-secondary"
+                    },
+                    buttonsStyling: false
+                });
+    
+                if (!amount) return; // User canceled or closed the dialog
+    
+                // Loading state
+                addMoneyBtn.disabled = true;
+                addMoneyBtn.textContent = "Processing...";
+    
+                try {
+                    const response = await fetch("/user/wallet/create", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ amount: Math.round(Number(amount)) })
+                    });
+    
+                    if (!response.ok) throw new Error("Network error: " + response.statusText);
+                    const order = await response.json();
+    
+                    if (!order.success) throw new Error("Failed to create payment order");
+    
+                    const options = {
+                        key: order.key_id,
+                        amount: order.amount,
+                        currency: "INR",
+                        name: "E-Commerce Wallet",
+                        description: "Add Money to Wallet",
+                        order_id: order.id,
+                        handler: async function (response) {
+                            const verify = await fetch("/user/wallet/verify-payment", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ ...response, amount })
+                            });
+                            const result = await verify.json();
+                            if (result.success) {
+                                Swal.fire({
+                                    icon: "success",
+                                    title: "Success",
+                                    text: "Money added successfully!",
+                                    confirmButtonText: "OK",
+                                    customClass: { confirmButton: "btn btn-primary" },
+                                    buttonsStyling: false
+                                }).then(() => location.reload());
+                            } else {
+                                Swal.fire({
+                                    icon: "error",
+                                    title: "Failed",
+                                    text: "Payment verification failed",
+                                    confirmButtonText: "OK",
+                                    customClass: { confirmButton: "btn btn-primary" },
+                                    buttonsStyling: false
+                                });
+                            }
+                        },
+                        prefill: {
+                            email: "", // Dynamic user data (adjust as per your setup)
+                            contact: ""
+                        },
+                        modal: {
+                            ondismiss: function () {
+                                console.log("Payment modal closed");
+                            }
+                        }
+                    };
+    
+                    const rzp1 = new Razorpay(options);
+                    rzp1.on("payment.failed", function (response) {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Payment Failed",
+                            text: response.error.description,
+                            confirmButtonText: "OK",
+                            customClass: { confirmButton: "btn btn-primary" },
+                            buttonsStyling: false
+                        });
+                    });
+                    rzp1.open();
+                } catch (err) {
+                    console.error("Error:", err.message);
+                    Swal.fire({
+                        icon: "error",
+                        title: "Error",
+                        text: `Payment failed: ${err.message}. Please try again.`,
+                        confirmButtonText: "OK",
+                        customClass: { confirmButton: "btn btn-primary" },
+                        buttonsStyling: false
+                    });
+                } finally {
+                    addMoneyBtn.disabled = false;
+                    addMoneyBtn.textContent = addMoneyBtn.getAttribute("aria-label") === "Add Money" ? "➕ Add Money" : "Create & Add Money";
+                }
+            });
+        }
+    
+        document.addEventListener("DOMContentLoaded", () => {
+            const sidebarLinks = document.querySelectorAll(".profile-sidebar a");
+            const contentContainer = document.querySelector(".profile-main-content");
+    
+            sidebarLinks.forEach(link => {
+                link.addEventListener("click", async (e) => {
+                    e.preventDefault();
+    
+                    if (link.classList.contains("profile-logout")) {
+                        Swal.fire({
+                            title: "Logout",
+                            text: "Are you sure you want to logout?",
+                            icon: "warning",
+                            showCancelButton: true,
+                            confirmButtonText: "Yes, Logout",
+                            cancelButtonText: "Cancel"
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                Swal.fire("Logged Out!", "You have successfully logged out.", "success")
+                                    .then(() => {
+                                        fetch('/user/logout', {
+                                            method: "POST"
+                                        }).then(() => {
+                                            window.location.href = "/";
+                                        });
+                                    });
+                            }
+                        });
+                        return;
+                    }
+    
+                    sidebarLinks.forEach(item => item.classList.remove("profile-active"));
+                    link.classList.add("profile-active");
+    
+                    const path = link.href.replace(window.location.origin, '');
+                    console.log("Loading: ", path);
+    
+                    try {
+                        const response = await fetch(path, {
+                            method: "GET",
+                            headers: { "X-Requested-With": "XMLHttpRequest" }
+                        });
+    
+                        if (!response.ok) throw new Error("Network response was not ok");
+    
+                        const data = await response.text();
+                        contentContainer.innerHTML = data;
+    
+                        // Initialize page-specific functionality
+                        if (path === "/user/addresses") {
+                            setupAddressManagement();
+                        } else if (path === "/user/wallet") {
+                            initializeWallet();
+                        }
+                    } catch (error) {
+                        console.error("Error loading page:", error);
+                        contentContainer.innerHTML = "<p class='text-danger'>Failed to load content. Please try again.</p>";
+                    }
+                });
+            });
+    
+            // Function to Attach Address Management Events
+            function setupAddressManagement() {
+                console.log("Setting up Address Management...");
+                const addForm = document.getElementById("addAddressForm");
+                const editForm = document.getElementById("editAddressForm");
+                const addressList = document.getElementById("addressList");
+    
+                if (!addForm || !editForm || !addressList) return;
+    
+                // Add Address
+                document.addEventListener("submit", async (e) => {
+                    if (e.target && e.target.id === "addAddressForm") {
+                        e.preventDefault();
+    
+                        const form = e.target;
+                        const formData = new FormData(form);
+    
+                        const formDataObj = {};
+                        formData.forEach((value, key) => {
+                            formDataObj[key] = value;
+                        });
+                        console.log("this is form data", formDataObj);
+    
+                        try {
+                            const response = await fetch("/user/add-address", {
+                                method: "POST",
+                                body: formData
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                updateAddressList(data.addresses);
+                                bootstrap.Modal.getInstance(document.getElementById("addAddressModal")).hide();
+                                form.reset();
+                                Swal.fire("Success", "Address added successfully!", "success");
+                            } else {
+                                Swal.fire("Error", data.message, "error");
+                            }
+                        } catch (err) {
+                            Swal.fire("Error", "Something went wrong!", "error");
+                        }
+                    }
+                });
+    
+                // Delete Address
+                document.querySelectorAll(".profile-delete-btn").forEach(button => {
+                    button.addEventListener("click", async () => {
+                        const addressId = button.getAttribute("data-id");
+                        try {
+                            const response = await fetch(`/user/delete-address/${addressId}`, {
+                                method: "DELETE"
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                updateAddressList(data.addresses);
+                                Swal.fire("Success", "Address deleted successfully!", "success");
+                            } else {
+                                Swal.fire("Error", data.message, "error");
+                            }
+                        } catch (err) {
+                            Swal.fire("Error", "Something went wrong!", "error");
+                        }
+                    });
+                });
+    
+                // Function to Update Address List
+                function updateAddressList(addresses) {
+                    const addressList = document.getElementById("addressList");
+                    if (!addressList) return;
+    
+                    if (addresses.length > 0) {
+                        let html = "";
+                        addresses.forEach(address => {
+                            html += `
+                                <div class="card shadow-sm p-3" style="width: 22rem; border-radius: 12px;">
+                                    <div class="card-body">
+                                        <h5 class="card-title d-flex align-items-center">
+                                            <i class="bi bi-geo-alt-fill me-2"></i> ${address.fullName || 'Unnamed'}
+                                            ${address.isDefault ? '<span class="badge bg-warning text-dark ms-2">Default</span>' : ''}
+                                        </h5>
+                                        <p class="card-text text-muted">
+                                            ${address.addressLine1}, ${address.city}, ${address.state}, ${address.pinCode}
+                                        </p>
+                                        <p class="text-muted"><strong>Mobile:</strong> ${address.mobileNumber}</p>
+                                        <div class="d-flex justify-content-between mt-3">
+                                            <button class="btn btn-outline-primary btn-sm profile-edit-btn"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#editAddressModal"
+                                                    data-id="${address._id}">
+                                                Edit
+                                            </button>
+                                            <button class="btn btn-outline-danger btn-sm profile-delete-btn"
+                                                    data-id="${address._id}">
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        addressList.innerHTML = html;
+                    } else {
+                        addressList.innerHTML = `<p class="text-muted">No addresses added yet.</p>`;
+                    }
+    
+                    // Reattach event listeners to new buttons
+                    document.querySelectorAll(".profile-delete-btn").forEach(button => {
+                        button.addEventListener("click", async () => {
+                            const addressId = button.getAttribute("data-id");
+    
+                            Swal.fire({
+                                title: "Are you sure?",
+                                text: "This action cannot be undone!",
+                                icon: "warning",
+                                showCancelButton: true,
+                                confirmButtonColor: "#d33",
+                                cancelButtonColor: "#3085d6",
+                                confirmButtonText: "Yes, delete it!"
+                            }).then(async (result) => {
+                                if (result.isConfirmed) {
+                                    try {
+                                        const response = await fetch(`/user/delete-address/${addressId}`, {
+                                            method: "DELETE"
+                                        });
+                                        const data = await response.json();
+                                        if (data.success) {
+                                            updateAddressList(data.addresses);
+                                            Swal.fire("Deleted!", "Address removed successfully.", "success");
+                                        } else {
+                                            Swal.fire("Error!", data.message, "error");
+                                        }
+                                    } catch (err) {
+                                        Swal.fire("Error!", "Something went wrong!", "error");
+                                    }
+                                }
+                            });
+                        });
+                    });
+                }
+            }
+    
+            // Run setup only when addresses page is first loaded
+            if (window.location.pathname === "/user/addresses") {
+                setupAddressManagement();
+            }
+        });
+    
+        // Other functions (unchanged)
+        function uploadProfilePic() {
+            const fileInput = document.getElementById("profilePicInput");
+            const file = fileInput.files[0];
+    
+            if (!file) return;
+    
+            const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+            if (!allowedTypes.includes(file.type)) {
+                Swal.fire("Error!", "Only JPG, PNG, and WEBP images are allowed!", "error");
+                return;
+            }
+    
+            if (file.size > 10 * 1024 * 1024) {
+                Swal.fire("Error!", "Image size should be less than 10MB!", "error");
+                return;
+            }
+    
+            const formData = new FormData();
+            formData.append("profilePicture", file);
+    
+            fetch("/user/update-picture", {
+                method: "POST",
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById("profilePic").src = data.imageUrl;
+                        Swal.fire("Success!", "Profile picture updated!", "success");
+                    } else {
+                        Swal.fire("Error!", data.message, "error");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error uploading profile picture:", error);
+                    Swal.fire("Error!", "Something went wrong!", "error");
+                });
+        }
+    
+        function resetPassword() {
+            const otp = prompt("Enter OTP sent to your registered mobile:");
+            if (otp === "1234") {
+                const newPassword = prompt("Enter your new password:");
+                if (newPassword) {
+                    alert("Password reset successfully!");
+                }
+            } else {
+                alert("Invalid OTP. Password reset failed.");
+            }
+        }
+    
+        function validateEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+    
+        function showChangePasswordOptions() {
+            document.getElementById('passwordChangeModal').classList.remove('d-none');
+        }
+    
+        function showMethod(method) {
+            if (method === 1) {
+                document.getElementById('method1').classList.remove('d-none');
+                document.getElementById('method2').classList.add('d-none');
+            } else {
+                document.getElementById('method1').classList.add('d-none');
+                document.getElementById('method2').classList.remove('d-none');
+            }
+        }
+    
+        function closePasswordModal() {
+            document.getElementById('passwordChangeModal').classList.add('d-none');
+        }
+    
+        function changePasswordWithCurrent() {
+            const currentPassword = document.getElementById("currentPassword").value;
+            const newPassword = document.getElementById("newPassword").value;
+            const confirmNewPassword = document.getElementById("confirmNewPassword").value;
+    
+            if (newPassword !== confirmNewPassword) {
+                Swal.fire("Error!", "New passwords do not match!", "error");
+                return;
+            }
+    
+            fetch("/user/change-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ currentPassword, newPassword })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire("Success!", "Password updated successfully!", "success");
+                        document.getElementById("passwordChangeModal").classList.add("d-none");
+                    } else {
+                        Swal.fire("Error!", data.message, "error");
+                    }
+                })
+                .catch(error => console.error("Error:", error));
+        }
+    
+        function sendOTP() {
+            const email = document.getElementById("otpEmail").value;
+    
+            fetch("/user/send-otp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire("Success!", "OTP sent to your email!", "success");
+                    } else {
+                        Swal.fire("Error!", data.message, "error");
+                    }
+                })
+                .catch(error => console.error("Error:", error));
+        }
+    
+        function changePasswordWithOTP() {
+            const email = document.getElementById("otpEmail").value;
+            const otp = document.getElementById("otpCode").value;
+            const newPassword = document.getElementById("otpNewPassword").value;
+            const confirmNewPassword = document.getElementById("otpConfirmNewPassword").value;
+    
+            if (newPassword !== confirmNewPassword) {
+                Swal.fire("Error!", "New passwords do not match!", "error");
+                return;
+            }
+    
+            fetch("/user/reset-otp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, otp, newPassword })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire("Success!", "Password updated successfully!", "success");
+                        document.getElementById("passwordChangeModal").classList.add("d-none");
+                    } else {
+                        Swal.fire("Error!", data.message, "error");
+                    }
+                })
+                .catch(error => console.error("Error:", error));
+        }
+    
+        function requestEmailChange() {
+            Swal.fire({
+                title: "Enter your new email",
+                input: "email",
+                inputPlaceholder: "Enter new email",
+                showCancelButton: true,
+                confirmButtonText: "Send OTP",
+                preConfirm: async (newEmail) => {
+                    if (!validateEmail(newEmail)) {
+                        Swal.showValidationMessage("Please enter a valid email address.");
+                        return false;
+                    }
+    
+                    const response = await fetch("/user/send-email-otp", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: newEmail })
+                    });
+    
+                    const result = await response.json();
+                    if (!result.success) {
+                        Swal.showValidationMessage(result.message || "Error sending OTP.");
+                        return false;
+                    }
+                    return newEmail;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const newEmail = result.value;
+                    Swal.fire({
+                        title: "Enter OTP",
+                        input: "text",
+                        inputPlaceholder: "Enter OTP sent to your email",
+                        showCancelButton: true,
+                        confirmButtonText: "Verify OTP",
+                        preConfirm: async (otp) => {
+                            const response = await fetch("/user/verify-email-otp", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ email: newEmail, otp })
+                            });
+    
+                            const verifyResult = await response.json();
+                            if (!verifyResult.success) {
+                                Swal.showValidationMessage(verifyResult.message || "Invalid OTP.");
+                                return false;
+                            }
+                            return newEmail;
+                        }
+                    }).then((otpResult) => {
+                        if (otpResult.isConfirmed) {
+                            document.getElementById('email').value = newEmail;
+                            Swal.fire({
+                                icon: "success",
+                                title: "Success!",
+                                text: "Email updated successfully!",
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+    </script>
+
+    <%- include ('../user/partials/footer')%>

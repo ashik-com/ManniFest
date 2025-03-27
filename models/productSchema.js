@@ -4,13 +4,10 @@ const productSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   description: { type: String, required: true },
   category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
-  price:{type:Number,required:true},
-  images: [{ type: String, required: true }], 
-  isListed: { type: Boolean, default: true },
+  baseprice:{type:Number,required:true},
+  
   status: { type: String, enum: ["active", "inactive"], default: "active" },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-
+  isListed: { type: Boolean, default: true }, 
   variants: [{ type: mongoose.Schema.Types.ObjectId, ref: "Variant" }],
 
   specifications: {
@@ -23,8 +20,14 @@ const productSchema = new mongoose.Schema({
     pattern: { type: String, default: "Plain",required:false }
   },
 
-  offer: { type: mongoose.Schema.Types.ObjectId, ref: "Offer", default: null }
-});
+  offer: { type: mongoose.Schema.Types.ObjectId, ref: "Offer", default: null },
+  ratings:[{
+    userId:{type:mongoose.Schema.Types.ObjectId,ref:"User"},
+    rating:{type:Number,required:true,min:1,max:5},
+    review:{type:String},
+ } ],
+ averageRating:{type:Number,default:0}
+},{timestamps:true});
 
 const Product = mongoose.model("Product",productSchema);
 module.exports = Product

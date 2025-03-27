@@ -1,0 +1,128 @@
+<!-- views/admin/add-product-offer.ejs -->
+<%- include('../admin/partials/header') %>
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-body">
+            <h2>Add Offer for <%= product.name %></h2>
+            <form id="addProductOfferForm" action="/admin/add-offer" method="POST">
+                <input type="hidden" name="offerType" value="product">
+                <input type="hidden" name="productId" value="<%= product._id %>">
+                <div class="mb-3">
+                    <label for="productName" class="form-label">Product:</label>
+                    <input type="text" id="productName" class="form-control" value="<%= product.name %>" disabled>
+                </div>
+                <div class="mb-3">
+                    <label for="discountType" class="form-label">Discount Type:</label>
+                    <select name="discountType" id="discountType" class="form-control" required>
+                        <option value="percentage">Percentage</option>
+                        <option value="fixed">Fixed Amount</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="discountValue" class="form-label">Discount Value:</label>
+                    <input type="number" name="discountValue" id="discountValue" class="form-control" required min="0" step="0.01">
+                </div>
+                <div class="mb-3">
+                    <label for="startDate" class="form-label">Start Date:</label>
+                    <input type="date" name="startDate" id="startDate" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label for="endDate" class="form-label">End Date:</label>
+                    <input type="date" name="endDate" id="endDate" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-success">Add Offer</button>
+                <a href="/admin/products" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Include SweetAlert2 (already in your project) -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('addProductOfferForm');
+        const today = new Date().toISOString().split('T')[0]; // Current date in YYYY-MM-DD format
+
+        // Set min date for startDate and endDate to today
+        document.getElementById('startDate').setAttribute('min', today);
+        document.getElementById('endDate').setAttribute('min', today);
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            // Client-side validation
+            const discountValue = parseFloat(document.getElementById('discountValue').value);
+            const startDate = new Date(document.getElementById('startDate').value);
+            const endDate = new Date(document.getElementById('endDate').value);
+
+            if (discountValue <= 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Discount',
+                    text: 'Discount value must be greater than 0!',
+                });
+                return;
+            }
+
+            if (startDate >= endDate) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Dates',
+                    text: 'End date must be after start date!',
+                });
+                return;
+            }
+
+            // Prepare form data
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData);
+
+            try {
+                const response = await fetch('/admin/add-product-offer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Offer Added!',
+                        text: 'The product offer has been successfully added.',
+                        showConfirmButton: false,
+                        timer: 1500,
+                    }).then(() => {
+                        window.location.href = '/admin/products'; // Redirect after success
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Failed to Add Offer',
+                        text: result.message || 'Something went wrong!',
+                    });
+                }
+            } catch (error) {
+                console.error('Error adding offer:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Network Error',
+                    text: 'An error occurred while adding the offer!',
+                });
+            }
+        });
+
+        // Real-time validation for endDate
+        document.getElementById('startDate').addEventListener('change', function () {
+            const startDate = this.value;
+            document.getElementById('endDate').setAttribute('min', startDate);
+        });
+    });
+</script>
+
+<%- include('../admin/partials/footer') %>

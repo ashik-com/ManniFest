@@ -3,19 +3,58 @@ const Category = require("../models/categorySchema");
 const Product = require("../models/productSchema")
 const Variant = require("../models/variantSchema")
 const bcrypt = require("bcrypt");
+const Offer = require("../models/offersSchema")
 
 
 exports.getCategorys = async (req, res) => {
-    try {
-      const categorys = await Category.find({}) 
-        .sort({ createdAt: -1 }); 
-  
-      res.render("admin/categorys", { categorys });
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      res.status(500).send("Server error");
-    }
-  };
+  try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = 10; // Adjust as needed
+      const searchQuery = req.query.search || '';
+      const skip = (page - 1) * limit;
+
+      const query = searchQuery
+          ? { name: { $regex: searchQuery, $options: 'i' } }
+          : {};
+
+      const totalCategories = await Category.countDocuments(query);
+      const categories = await Category.find(query)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean();
+
+      // Fetch offers for each category
+      const categoryIds = categories.map(c => c._id);
+      const offers = await Offer.find({ type: 'category', categoryId: { $in: categoryIds } }).lean();
+      const offerMap = {};
+      offers.forEach(offer => {
+          offerMap[offer.categoryId.toString()] = offer;
+      });
+
+      // Combine categories with their offers
+      const enrichedCategories = categories.map(category => ({
+          ...category,
+          offer: offerMap[category._id.toString()] || null,
+      }));
+
+      res.render('admin/categorys', {
+          categorys: enrichedCategories, // Match your variable name
+          currentPage: page,
+          totalPages: Math.ceil(totalCategories / limit),
+          searchQuery: searchQuery,
+      });
+  } catch (error) {
+      console.error('Error fetching categories:', error);
+      res.status(500).render('admin/catgorys', {
+          categorys: [],
+          currentPage: 1,
+          totalPages: 1,
+          searchQuery: '',
+          error: 'Failed to load categories',
+      });
+  }
+};
 
   exports.softDeleteCategory = async (req, res) => {
     try {

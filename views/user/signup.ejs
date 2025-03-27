@@ -1,111 +1,212 @@
 <%- include ("../user/partials/header")%>
 
-
-
 <!--================login_part Area =================-->
 <section class="login_part padding_top">
-  <div class="container">
-      <div class="row align-items-center">
-          <div class="col-lg-6 col-md-6">
-              <div class="login_part_text text-center">
-                  <div class="login_part_text_iner">
-                      <h2>Are you have an Account?</h2>
-                      <p>There are advances being made in science and technology
-                          everyday, and a good example of this is the</p>
-                      <a href="/user/login" class="btn_3">Please Login</a>
-                  </div>
-              </div>
-          </div>
-          <div class="col-lg-6 col-md-6">
-              <div class="login_part_form">
-                  <div class="login_part_form_iner">
-                      <h3>Hello! <br>
-                          Please Sign Up here</h3>
-                      <form class="row contact_form" id="signupForm"  novalidate="novalidate">
-                          <div class="col-md-12 form-group p_star">
-                              <input type="text" class="form-control" id="name" name="name" value=""
-                                  placeholder="Name">
-                          </div>
-                          <div class="col-md-12 form-group p_star">
-                              <input type="password" class="form-control" id="password" name="password" value=""
-                                  placeholder="Password">
-                          </div>
-                          <div class="col-md-12 form-group p_star">
-                            <input type="password" class="form-control" id="confirmpassword" name="confirmpassword" value=""
-                                placeholder="Confirm Password">
-                        </div>
-                          <div class="col-md-12 form-group">
-                              <div class="creat_account d-flex align-items-center">
-                                  <a href="/user/verification">Back to Login-</a><p>Already a user!</p>
-                              </div>
-                              <button type="submit"  class="btn_3">
-                                  Sign Up
-                              </button>
-                          </div>
-                      </form>
-                  </div>
-              </div>
-          </div>
-      </div>
-  </div>
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6 col-md-6">
+                <div class="login_part_text text-center">
+                    <div class="login_part_text_iner">
+                        <h2>Are you have an Account?</h2>
+                        <p>There are advances being made in science and technology
+                            everyday, and a good example of this is the</p>
+                        <a href="/user/login" class="btn_3">Please Login</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 col-md-6">
+                <div class="login_part_form">
+                    <div class="login_part_form_iner">
+                        <h3>Hello! <br>
+                            Please Sign Up here</h3>
+                        <form class="row contact_form" id="signupForm" novalidate="novalidate">
+                            <div class="col-md-12 form-group p_star">
+                                <input type="text" class="form-control" id="name" name="name" value=""
+                                    placeholder="Name">
+                            </div>
+                            <div class="col-md-12 form-group p_star">
+                                <input type="email" class="form-control" id="email" name="email" value=""
+                                    placeholder="Email">
+                            </div>
+                            <div class="col-md-12 form-group p_star">
+                                <input type="password" class="form-control" id="password" name="password" value=""
+                                    placeholder="Password">
+                            </div>
+                            <div class="col-md-12 form-group p_star">
+                                <input type="password" class="form-control" id="confirmpassword" name="confirmpassword" value=""
+                                    placeholder="Confirm Password">
+                            </div>
+                            <!-- Added Referral Code Field -->
+                            <div class="col-md-12 form-group p_star">
+                                <input type="text" class="form-control" id="referredBy" name="referredBy" value=""
+                                    placeholder="Referral Code (Optional)">
+                            </div>
+                            <div class="col-md-12 form-group">
+                                <div class="creat_account d-flex align-items-center">
+                                    <!-- Optional content here if needed -->
+                                </div>
+                                <button type="submit" class="btn_3">
+                                    Sign Up
+                                </button>
+                                <!-- Password Requirements List -->
+                                <ul class="password-requirements mt-3 text-left text-muted" style="font-size: 0.9em; list-style-type: disc; padding-left: 20px;">
+                                    <li>Minimum 8 characters</li>
+                                    <li>At least one uppercase letter (A-Z)</li>
+                                    <li>At least one lowercase letter (a-z)</li>
+                                    <li>At least one number (0-9)</li>
+                                    <li>At least one special character (@$!%*?&)</li>
+                                </ul>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </section>
+
+<!-- Optional CSS for better styling -->
+<style>
+    .password-requirements {
+        color: #6c757d; /* Muted gray color */
+    }
+    .password-requirements li {
+        margin-bottom: 5px;
+    }
+</style>
 
 <script>
     document.getElementById("signupForm").addEventListener("submit", async (e) => {
-        e.preventDefault(); 
+        e.preventDefault();
 
+        // Get and trim input values
         const name = document.querySelector("#name").value.trim();
+        const email = document.querySelector("#email").value.trim();
         const password = document.querySelector("#password").value.trim();
-        const confirmPassword = document.querySelector("#confirmpassword").value.trim(); 
+        const confirmPassword = document.querySelector("#confirmpassword").value.trim();
+        // Added referralCode
+        const referredBy = document.querySelector("#referredBy").value.trim();
 
-        
-        if (!name || name.length < 3) {
+        // 1. Name validation
+        if (!name) {
+            Swal.fire({
+                icon: "warning",
+                title: "Name Required",
+                text: "Please enter your name!",
+            });
+            return;
+        }
+        if (name.length < 3 || name.length > 50) {
             Swal.fire({
                 icon: "warning",
                 title: "Invalid Name",
-                text: "Name must be at least 3 characters long!",
+                text: "Name must be between 3 and 50 characters long!",
+            });
+            return;
+        }
+        if (!/^[a-zA-Z\s]+$/.test(name)) {
+            Swal.fire({
+                icon: "warning",
+                title: "Invalid Name",
+                text: "Name can only contain letters and spaces!",
             });
             return;
         }
 
+        // 2. Email validation
+        if (!email) {
+            Swal.fire({
+                icon: "warning",
+                title: "Email Required",
+                text: "Please enter your email!",
+            });
+            return;
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            Swal.fire({
+                icon: "warning",
+                title: "Invalid Email",
+                text: "Please enter a valid email address!",
+            });
+            return;
+        }
+        if (email.length > 254) {
+            Swal.fire({
+                icon: "warning",
+                title: "Email Too Long",
+                text: "Email must be less than 254 characters!",
+            });
+            return;
+        }
 
-        if (!password || password.length < 6) {
+        // 3. Password validation
+        if (!password) {
+            Swal.fire({
+                icon: "warning",
+                title: "Password Required",
+                text: "Please enter a password!",
+            });
+            return;
+        }
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(password)) {
             Swal.fire({
                 icon: "warning",
                 title: "Weak Password",
-                text: "Password must be at least 6 characters long!",
+                text: "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character!",
+            });
+            return;
+        }
+        if (password.length > 128) {
+            Swal.fire({
+                icon: "warning",
+                title: "Password Too Long",
+                text: "Password must be less than 128 characters!",
             });
             return;
         }
 
-
+        // 4. Confirm password validation
+        if (!confirmPassword) {
+            Swal.fire({
+                icon: "warning",
+                title: "Confirmation Required",
+                text: "Please confirm your password!",
+            });
+            return;
+        }
         if (password !== confirmPassword) {
             Swal.fire({
                 icon: "error",
                 title: "Password Mismatch",
-                text: "Confirm Password does not match!",
+                text: "Passwords do not match!",
             });
             return;
         }
 
-        
+        // 5. Submit to server with referralCode added
         try {
+            const payload = { name, email, password, confirmPassword };
+            if (referredBy) payload.referredBy = referredBy;
+
             const response = await fetch("/user/signup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, password, confirmPassword }),
+                body: JSON.stringify(payload),
             });
-         
 
             const data = await response.json();
 
             if (data.success) {
+                localStorage.setItem("newUser", JSON.stringify(data.user));
                 Swal.fire({
                     icon: "success",
                     title: "Signup Successful!",
-                    text: "Redirecting to Home...",
+                    // Updated message to reflect reward at signup
+                    text: `Please confirm the OTP. Your referral code: ${data.referralCode || "N/A"}. Share it to earn ₹50 when someone signs up!`,
                 }).then(() => {
-                    window.location.href = "/"; 
+                    window.location.href = "/user/verification";
                 });
             } else {
                 Swal.fire({
@@ -115,10 +216,11 @@
                 });
             }
         } catch (error) {
+            console.error("Signup error:", error);
             Swal.fire({
                 icon: "error",
-                title: "Server Error",
-                text: "Could not connect to the server. Try again later.",
+                title: "Connection Error",
+                text: "Unable to reach the server. Please check your connection and try again.",
             });
         }
     });

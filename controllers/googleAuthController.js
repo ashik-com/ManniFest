@@ -66,6 +66,8 @@ passport.serializeUser((user, done) => {
   
       
       req.session.name = req.user.name; 
+      req.session.email= req.user.email;
+      
   
       
       return res.redirect('/');

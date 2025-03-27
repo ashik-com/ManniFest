@@ -1,0 +1,75 @@
+<div class="row g-3">
+    <!-- Profile Card -->
+    <div class="col-md-6 col-12">
+        <div class="profile-card">
+            <div class="profile-avatar"><%= user?.name?.charAt(0).toUpperCase() %></div>
+            <h3 class="mb-2"><%= user?.name %></h3>
+            <p class="text-muted mb-1"><%= user?.email %></p>
+            <p class="text-muted mb-3">Phone: N/A</p>
+            <a href="/user/edit-profile" class="profile-edit-profile" data-route="edit-profile">EDIT PROFILE</a>
+        </div>
+    </div>
+
+    <!-- Membership Card -->
+    <div class="col-md-6 col-12">
+        <div class="profile-membership-card">
+            <h3 class="mb-2">Premium Membership</h3>
+            <p class="text-muted mb-3">Upgrade to the premium experience now</p>
+            <div class="profile-feature-icons d-flex justify-content-center">
+                <img src="https://img.icons8.com/ios-filled/30/000000/delivery.png" class="profile-feature-icon" alt="Free Shipping">
+                <img src="https://img.icons8.com/ios-filled/30/000000/fast--v1.png" class="profile-feature-icon" alt="Early Access">
+                <img src="https://img.icons8.com/ios-filled/30/000000/gift.png" class="profile-feature-icon" alt="VIP Support">
+            </div>
+            <button class="profile-get-membership mt-3">GET MEMBERSHIP</button>
+        </div>
+    </div>
+
+    <!-- Dashboard Cards -->
+    <div class="col-md-3 col-6">
+        <div class="profile-dashboard-card">
+            <img src="https://img.icons8.com/ios-filled/30/000000/shopping-bag.png" alt="Orders">
+            <h6 class="profile-card-title">My Orders</h6>
+            <p class="profile-card-text"><%= user?.orders?.length %> Orders</p>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-6">
+        <div class="profile-dashboard-card">
+            <img src="https://img.icons8.com/ios-filled/30/000000/credit-card.png" alt="Payments">
+            <h6 class="profile-card-title">My Payments</h6>
+            <p class="profile-card-text">Manage Payments</p>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-6">
+        <div class="profile-dashboard-card">
+            <img src="https://img.icons8.com/ios-filled/30/000000/wallet.png" alt="Wallet">
+            <h6 class="profile-card-title">My Wallet</h6>
+            <p class="profile-card-text">$<%= user?.wallet_balance?.toFixed(2) %></p>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-6">
+        <div class="profile-dashboard-card">
+            <img src="https://img.icons8.com/ios-filled/30/000000/map-marker.png" alt="Addresses">
+            <h6 class="profile-card-title">My Addresses</h6>
+            <p class="profile-card-text"><%= user?.addresses?.length %> Addresses</p>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-6">
+        <div class="profile-dashboard-card">
+            <img src="https://img.icons8.com/ios-filled/30/000000/user.png" alt="Profile">
+            <h6 class="profile-card-title">My Profile</h6>
+            <p class="profile-card-text">Edit Personal Info</p>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-6">
+        <div class="profile-dashboard-card">
+            <img src="https://img.icons8.com/ios-filled/30/000000/help.png" alt="Help">
+            <h6 class="profile-card-title">Help & Support</h6>
+            <p class="profile-card-text">Reach Out To Us</p>
+        </div>
+    </div>
+</div>

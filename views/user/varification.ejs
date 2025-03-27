@@ -1,6 +1,5 @@
 <%- include("../user/partials/header")%>
 
-
 <!--================login_part Area =================-->
 <section class="login_part padding_top">
   <div class="container">
@@ -20,7 +19,7 @@
                   <div class="login_part_form_iner">
                       <h3>Hello,Welcome ! <br>
                           Please Enter your Email here</h3>
-                      <form class="row contact_form"  novalidate="novalidate">
+                      <form class="row contact_form" novalidate="novalidate">
                           <div class="col-md-12 form-group p_star">
                               <input type="email" class="form-control" id="Email" name="email" value=""
                                   placeholder="Enter your Email">
@@ -34,7 +33,12 @@
                               <button type="button" value="submit" class="btn_3 get-otp">
                                   Get OTP
                               </button>
-                              <button type="button" class="btn_3 verify-otp" style="display: none;">Verify OTP</button>
+                              <button type="button" class="btn_3 resend-otp" style="display: none;">
+                                  Resend OTP
+                              </button>
+                              <button type="button" class="btn_3 verify-otp" style="display: none;">
+                                  Verify OTP
+                              </button>
                           </div>
                       </form>
                   </div>
@@ -44,15 +48,23 @@
   </div>
 </section>
 
-
 <script>
-    document.querySelector('.get-otp').addEventListener("click", async (e) => {
-        e.preventDefault();
+    const newUser = JSON.parse(localStorage.getItem("newUser"));
+    const emailInput = document.querySelector("#Email");
+    const otpInput = document.querySelector("#OTP");
+    let activeTimer = null; 
 
-        const email = document.querySelector("#Email").value;
-        const getOtpButton = document.querySelector('.get-otp');
-        const verifyOtpButton = document.querySelector('.verify-otp');
+   
+    if (newUser && newUser.email) {
+        emailInput.value = newUser.email;
+    }
+
+    
+    async function sendOtp(email, buttonToDisable) {
         const countdownText = document.getElementById('countdown');
+        const getOtpButton = document.querySelector('.get-otp');
+        const resendOtpButton = document.querySelector('.resend-otp');
+        const verifyOtpButton = document.querySelector('.verify-otp');
 
         if (!email) {
             Swal.fire({
@@ -60,10 +72,16 @@
                 title: "Email Required",
                 text: "Please enter your email before requesting an OTP!",
             });
-            return;
+            return false;
         }
 
-        getOtpButton.disabled = true;
+        // Clear any existing timer
+        if (activeTimer) {
+            clearInterval(activeTimer);
+            activeTimer = null;
+        }
+
+        buttonToDisable.disabled = true;
 
         try {
             const response = await fetch('/user/sent-otp', {
@@ -81,27 +99,35 @@
                     text: "Please check your email for the OTP.",
                 });
 
+                
                 getOtpButton.style.display = "none";
+                resendOtpButton.style.display = "none"; 
                 verifyOtpButton.style.display = "inline-block";
+                otpInput.value = ""; 
 
                 let timeLeft = 60;
-                const timer = setInterval(() => {
+                countdownText.innerText = `OTP valid for: ${timeLeft}s`;
+                activeTimer = setInterval(() => {
                     if (timeLeft <= 0) {
-                        clearInterval(timer);
-                        countdownText.innerText = "OTP Expired. Request a new one.";
-                        getOtpButton.style.display = "inline-block";
+                        clearInterval(activeTimer);
+                        activeTimer = null;
+                        countdownText.innerText = "OTP Expired";
+                        resendOtpButton.style.display = "inline-block";
+                        resendOtpButton.disabled = false;
                         verifyOtpButton.style.display = "none";
                     } else {
                         countdownText.innerText = `OTP valid for: ${timeLeft}s`;
                         timeLeft--;
                     }
                 }, 1000);
+                return true;
             } else {
                 Swal.fire({
                     icon: "error",
                     title: "Failed to Send OTP",
                     text: data.message || "Something went wrong. Try again later.",
                 });
+                return false;
             }
         } catch (error) {
             Swal.fire({
@@ -109,16 +135,32 @@
                 title: "Server Error",
                 text: "Could not connect to the server. Try again later.",
             });
+            return false;
+        } finally {
+            buttonToDisable.disabled = false;
         }
+    }
 
-        getOtpButton.disabled = false;
+    
+    document.querySelector('.get-otp').addEventListener("click", async (e) => {
+        e.preventDefault();
+        const email = emailInput.value;
+        await sendOtp(email, document.querySelector('.get-otp'));
     });
 
+    
+    document.querySelector('.resend-otp').addEventListener("click", async (e) => {
+        e.preventDefault();
+        const email = emailInput.value;
+        await sendOtp(email, document.querySelector('.resend-otp'));
+    });
+
+   
     document.querySelector(".verify-otp").addEventListener("click", async (e) => {
         e.preventDefault();
 
-        const email = document.querySelector("#Email").value;
-        const otp = document.querySelector("#OTP").value;
+        const email = emailInput.value;
+        const otp = otpInput.value;
 
         if (!email || !otp) {
             Swal.fire({
@@ -133,18 +175,23 @@
             const response = await fetch("/user/verify-otp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, otp }),
+                body: JSON.stringify({ email, otp, newUser }),
             });
 
             const data = await response.json();
 
             if (data.success) {
+                if (activeTimer) {
+                    clearInterval(activeTimer);
+                    activeTimer = null;
+                }
+                
                 Swal.fire({
                     icon: "success",
                     title: "OTP Verified!",
-                    text: "You can now proceed to registration.",
+                    text: "Redirecting Home...",
                 }).then(() => {
-                    window.location.href = "/user/signup";
+                    window.location.href = "/";
                 });
             } else {
                 Swal.fire({
@@ -162,6 +209,5 @@
         }
     });
 </script>
-
 
 <%- include("../user/partials/footer")%>
