@@ -41,6 +41,7 @@ const razorpayInstance = new Razorpay({
     let discountedPrice = variantPrice;
     let hasOffer = false;
     let discountPercentage = null;
+    console.log("orrrrrrrrrrrrrrrringin",originalPrice)
   
     const calcDiscount = (price, offer) => {
       if (offer.discountType === "percentage") {
@@ -51,8 +52,8 @@ const razorpayInstance = new Razorpay({
       return price;
     };
   
-    const productDiscountedPrice = productOffer ? calcDiscount(variantPrice, productOffer) : variantPrice;
-    const categoryDiscountedPrice = categoryOffer ? calcDiscount(variantPrice, categoryOffer) : variantPrice;
+    const productDiscountedPrice = productOffer ? calcDiscount(originalPrice, productOffer) : originalPrice;
+    const categoryDiscountedPrice = categoryOffer ? calcDiscount(originalPrice, categoryOffer) : originalPrice;
   
     if (productOffer && (!categoryOffer || productDiscountedPrice < categoryDiscountedPrice)) {
       discountedPrice = productDiscountedPrice;
@@ -67,6 +68,9 @@ const razorpayInstance = new Razorpay({
         ? categoryOffer.discountValue
         : ((variantPrice - discountedPrice) / variantPrice * 100).toFixed(0);
     }
+
+    console.log("this is original priece",originalPrice)
+    console.log("discount price", discountedPrice)
   
     return { originalPrice, discountedPrice, hasOffer, discountPercentage };
   };
@@ -148,6 +152,8 @@ const razorpayInstance = new Razorpay({
         item.price = discountedPrice;
         item.hasOffer = hasOffer;
         item.discountPercentage = discountPercentage;
+
+        console.log("this is item ",item)
   
         // Validate stock
         if (item.variantId.stock < item.quantity) {
@@ -197,7 +203,7 @@ const razorpayInstance = new Razorpay({
         return res.status(400).redirect("/user/cart");
       }
   
-      const shippingCost = 50; // Consider making this configurable
+      const shippingCost = 0; // Consider making this configurable
       const totalAmount = subtotal + shippingCost;
       console.log("Subtotal:", subtotal, "Total:", totalAmount);
   
@@ -216,10 +222,13 @@ const razorpayInstance = new Razorpay({
       const coupons = await Coupon.find({ 
         isActive: true, 
         expiryDate: { $gt: new Date() },
-        minimumPurchase: { $lte: subtotal }
+        minimumPurchase: { $lte: subtotal },
+        usedBy: { $ne: userId } 
       });
       console.log("Coupons found:", coupons.length);
-  
+
+      
+      console.log("here is cart",cart)
       console.log("Rendering checkout page");
       return res.status(200).render("user/checkout", {
         name,
@@ -256,18 +265,20 @@ const razorpayInstance = new Razorpay({
         shippingCost,
         shippingMethod,
       } = req.body;
-  
+        
+        console.log("gross price",grossPrice)
+        console.log("discount amount",discountAmount)
       if (!req.body || Object.keys(req.body).length === 0) {
         return res.status(400).json({ success: false, message: "Request body is required" });
       }
       console.log("Checkout details:", req.body);
   
-      // Session validation
+      
       if (!req.session || !req.session.email) {
         return res.status(401).json({ success: false, message: "Session expired. Please log in again." });
       }
   
-      // User validation
+      
       const user = await User.findOne({ email: req.session.email });
       if (!user) {
         return res.status(401).json({ success: false, message: "User not found. Please log in again." });
@@ -275,7 +286,7 @@ const razorpayInstance = new Razorpay({
       const userId = user._id;
       console.log("User ID:", userId);
   
-      // Cart validation
+      
       const cart = await Cart.findOne({ userId })
         .populate({
           path: "items.productId",
@@ -292,7 +303,7 @@ const razorpayInstance = new Razorpay({
       }
       console.log("Cart:", cart.items.length);
   
-      // Address validation
+      
       const address = await Address.findOne({ _id: addressId, userId });
       if (!address) {
         return res.status(400).json({ success: false, message: "Invalid address selection" });
@@ -307,7 +318,7 @@ const razorpayInstance = new Razorpay({
       }
       console.log("Address:", address._id);
   
-      // Payment method validation
+     
       const formattedPaymentMethod = paymentMethod?.toUpperCase();
       const validPaymentMethods = ["COD", "RAZORPAY", "WALLET"];
       if (!formattedPaymentMethod || !validPaymentMethods.includes(formattedPaymentMethod)) {
@@ -318,7 +329,7 @@ const razorpayInstance = new Razorpay({
       }
       console.log("Payment method:", formattedPaymentMethod);
   
-      // Shipping method validation
+     
       const validShippingMethods = ["standard", "express"];
       if (!shippingMethod || !validShippingMethods.includes(shippingMethod)) {
         return res.status(400).json({
@@ -327,7 +338,7 @@ const razorpayInstance = new Razorpay({
         });
       }
   
-      // Items validation
+      
       if (!Array.isArray(items) || items.length !== cart.items.length) {
         return res.status(400).json({ success: false, message: "Invalid items data" });
       }
@@ -368,13 +379,15 @@ const razorpayInstance = new Razorpay({
         });
       }
   
-      // Calculate pricing with offers
+      
       let calculatedGrossPrice = 0;
       const orderItems = await Promise.all(
         items.map(async (item, index) => {
           const cartItem = cart.items[index];
           const priceWithOffer = await calculatePriceWithOffers(cartItem.productId._id, item.price);
           calculatedGrossPrice += priceWithOffer.originalPrice * item.quantity;
+
+          console.log("priceWithOffer.originalPrice",priceWithOffer.originalPrice)
   
           return {
             productId: cartItem.productId._id,
@@ -385,15 +398,15 @@ const razorpayInstance = new Razorpay({
             variantColor: cartItem.variantId?.color || "N/A",
             variantSize: cartItem.variantId?.size || "N/A",
             variantImage: cartItem.variantId?.images[0] || cartItem.productId.images[0],
-            price: priceWithOffer.discountedPrice, // Use discounted price for item price
-            discount: priceWithOffer.originalPrice - priceWithOffer.discountedPrice, // Item-level discount
+            price: priceWithOffer.originalPrice, 
+            discount: item.originalPrice - priceWithOffer.originalPrice, 
             quantity: item.quantity,
           };
         })
       );
   
-      const calculatedShippingCost = parseFloat(shippingCost); // From frontend
-      let calculatedDiscountAmount = parseFloat(discountAmount) || 0; // Manual discounts (currently 0)
+      const calculatedShippingCost = parseFloat(shippingCost);
+      let calculatedDiscountAmount = parseFloat(discountAmount) || 0; 
       let calculatedCouponDiscountAmount = 0;
   
       let couponId = null;
@@ -427,7 +440,7 @@ const razorpayInstance = new Razorpay({
       const calculatedTotalPrice =
         calculatedGrossPrice - calculatedDiscountAmount - calculatedCouponDiscountAmount + calculatedShippingCost;
   
-      // Validate received values against calculated values
+      
       if (
         Math.abs(parseFloat(grossPrice) - calculatedGrossPrice) > 0.01 ||
         Math.abs(parseFloat(discountAmount || 0) - calculatedDiscountAmount) > 0.01 ||
@@ -449,7 +462,7 @@ const razorpayInstance = new Razorpay({
         });
       }
   
-      // Create order
+      
       const order = new Order({
         userId,
         items: orderItems,
@@ -475,7 +488,7 @@ const razorpayInstance = new Razorpay({
         placedAt: new Date(),
       });
   
-      // Stock updates
+     
       for (const item of cart.items) {
         const result = await Variant.findOneAndUpdate(
           { _id: item.variantId._id, stock: { $gte: item.quantity } },
@@ -490,7 +503,7 @@ const razorpayInstance = new Razorpay({
       await order.save();
       await Cart.deleteOne({ userId });
   
-      // Update coupon usage
+     
       if (couponId) {
         await Coupon.updateOne({ _id: couponId }, { $push: { usedBy: userId } });
       }
@@ -558,19 +571,19 @@ exports.createRazorpayOrder = async (req, res) => {
     const currency = "INR";
     console.log("Razorpay items", req.body);
 
-    // Session check
+    
     if (!req.session?.email) {
       return res.status(401).json({ success: false, message: "Session expired. Please log in again." });
     }
 
-    // User validation
+    
     const user = await User.findOne({ email: req.session.email });
     if (!user) {
       return res.status(401).json({ success: false, message: "User not found. Please log in again." });
     }
     const userId = user._id;
 
-    // Cart validation
+    
     const cart = await Cart.findOne({ userId })
       .populate({
         path: "items.productId",
@@ -590,7 +603,7 @@ exports.createRazorpayOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: "Cart items mismatch." });
     }
 
-    // Stock check
+   
     for (let i = 0; i < cart.items.length; i++) {
       const cartItem = cart.items[i];
       const reqItem = items[i];
@@ -602,19 +615,19 @@ exports.createRazorpayOrder = async (req, res) => {
       }
     }
 
-    // Address validation
+    
     const address = await Address.findOne({ _id: addressId, userId });
     if (!address || !address.addressLine1 || !address.pinCode || !address.mobileNumber) {
       return res.status(400).json({ success: false, message: "Invalid address selection." });
     }
 
-    // Payment method validation
+   
     const formattedPaymentMethod = paymentMethod?.toUpperCase();
     if (formattedPaymentMethod !== "RAZORPAY") {
       return res.status(400).json({ success: false, message: "Invalid payment method for Razorpay." });
     }
 
-    // Check pending orders
+    
     const maxPendingOrders = 1;
     const pendingRazorpayOrders = await Order.countDocuments({
       userId,
@@ -628,13 +641,13 @@ exports.createRazorpayOrder = async (req, res) => {
       });
     }
 
-    // Quantity validation
+    
     const invalidQuantityItems = cart.items.filter(item => item.quantity > 5);
     if (invalidQuantityItems.length > 0) {
       return res.status(400).json({ success: false, message: "Max 5 units per product allowed." });
     }
 
-    // Calculate pricing with offers
+    
     let calculatedGrossPrice = 0;
     const orderItems = await Promise.all(
       items.map(async (item, index) => {
@@ -651,15 +664,15 @@ exports.createRazorpayOrder = async (req, res) => {
           variantColor: cartItem.variantId?.color || "N/A",
           variantSize: cartItem.variantId?.size || "N/A",
           variantImage: cartItem.variantId?.images[0] || cartItem.productId.images[0],
-          price: priceWithOffer.discountedPrice, // Use discounted price for item price
-          discount: priceWithOffer.originalPrice - priceWithOffer.discountedPrice, // Item-level discount
+          price: priceWithOffer.originalPrice, 
+          discount: item.originalPrice - priceWithOffer.originalPrice, 
           quantity: item.quantity,
         };
       })
     );
 
-    const calculatedShippingCost = parseFloat(shippingCost); // From frontend
-    let calculatedDiscountAmount = parseFloat(discountAmount) || 0; // Manual discounts (currently 0)
+    const calculatedShippingCost = parseFloat(shippingCost);
+    let calculatedDiscountAmount = parseFloat(discountAmount) || 0; 
     let calculatedCouponDiscountAmount = 0;
 
     let couponId = null;
@@ -686,7 +699,7 @@ exports.createRazorpayOrder = async (req, res) => {
     const calculatedTotalPrice =
       calculatedGrossPrice - calculatedDiscountAmount - calculatedCouponDiscountAmount + calculatedShippingCost;
 
-    // Validate received values
+    
     if (
       Math.abs(parseFloat(grossPrice) - calculatedGrossPrice) > 0.01 ||
       Math.abs(parseFloat(discountAmount || 0) - calculatedDiscountAmount) > 0.01 ||
@@ -717,7 +730,6 @@ exports.createRazorpayOrder = async (req, res) => {
       payment_capture: 1,
     });
 
-    // Stock updates
     for (const item of cart.items) {
       if (!item.variantId) {
         throw new Error(`No variant specified for product: ${item.productId.name}`);
@@ -754,17 +766,16 @@ exports.createRazorpayOrder = async (req, res) => {
       orderStatus: "Pending",
       razorpayOrderId: razorpayOrder.id,
       placedAt: new Date(),
-      paymentDeadline: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+      paymentDeadline: new Date(Date.now() + 30 * 60 * 1000), 
     });
 
     await order.save();
     await Cart.findOneAndUpdate({ userId }, { $set: { items: [] } });
 
-    // Update coupon usage (not applied until payment is verified)
-    // This should ideally move to verifyRazorpayPayment to track usage only on successful payment
-    // if (couponId) {
-    //   await Coupon.updateOne({ _id: couponId }, { $push: { usedBy: userId } });
-    // }
+
+    if (couponId) {
+      await Coupon.updateOne({ _id: couponId }, { $push: { usedBy: userId } });
+    }
 
     res.json({
       success: true,

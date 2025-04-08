@@ -7,88 +7,143 @@ const bcrypt = require("bcrypt");
 
 
 exports.getDashboard = async (req, res) => {
-   try {
-       const salesFilter = req.query.salesFilter || 'monthly';
-       const orderFilter = req.query.orderFilter || 'monthly';
-       const currentDate = new Date();
-
-       // Sales Chart Data (Total Sales)
-       let salesChartData = {};
-       switch (salesFilter) {
-           case 'yearly': salesChartData = await getYearlySales(currentDate); break;
-           case 'monthly': salesChartData = await getMonthlySales(currentDate); break;
-           case 'weekly': salesChartData = await getWeeklySales(currentDate); break;
-           case 'daily': salesChartData = await getDailySales(currentDate); break;
-       }
-
-       // Order Count Chart Data
-       let orderChartData = {};
-       switch (orderFilter) {
-           case 'yearly': orderChartData = await getYearlyOrders(currentDate); break;
-           case 'monthly': orderChartData = await getMonthlyOrders(currentDate); break;
-           case 'weekly': orderChartData = await getWeeklyOrders(currentDate); break;
-           case 'daily': orderChartData = await getDailyOrders(currentDate); break;
-       }
-
-       // Top 10 Best Selling Products
-       const topProducts = await Order.aggregate([
-           { $unwind: '$items' },
-           { $match: { paymentStatus: 'Paid', orderStatus: { $nin: ['Cancelled', 'Returned'] } } },
-           { $group: { _id: '$items.productId', unitsSold: { $sum: '$items.quantity' }, revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } },
-           { $lookup: { from: 'products', localField: '_id', foreignField: '_id', as: 'product' } },
-           { $unwind: '$product' },
-           { $project: { name: '$product.name', unitsSold: 1, revenue: 1 } },
-           { $sort: { revenue: -1 } },
-           { $limit: 10 }
-       ]);
-
-       // Top 10 Best Selling Categories
-       const topCategories = await Order.aggregate([
-           { $unwind: '$items' },
-           { $match: { paymentStatus: 'Paid', orderStatus: { $nin: ['Cancelled', 'Returned'] } } },
-           { $group: { _id: '$items.category', unitsSold: { $sum: '$items.quantity' }, revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } },
-           { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'category' } },
-           { $unwind: '$category' },
-           { $project: { name: '$category.name', unitsSold: 1, revenue: 1 } },
-           { $sort: { revenue: -1 } },
-           { $limit: 10 }
-       ]);
-
-       // Top 10 Best Selling Brands
-       const topBrands = await Order.aggregate([
-           { $unwind: '$items' },
-           { $match: { paymentStatus: 'Paid', orderStatus: { $nin: ['Cancelled', 'Returned'] } } },
-           { $lookup: { from: 'products', localField: 'items.productId', foreignField: '_id', as: 'product' } },
-           { $unwind: '$product' },
-           { $group: { _id: '$product.brand', unitsSold: { $sum: '$items.quantity' }, revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } },
-           { $project: { name: '$_id', unitsSold: 1, revenue: 1 } },
-           { $sort: { revenue: -1 } },
-           { $limit: 10 }
-       ]);
-
-       res.render('admin/dashboard', {
-           salesChartData,
-           orderChartData,
-           topProducts,
-           topCategories,
-           topBrands,
-           salesFilter,
-           orderFilter
-       });
-   } catch (error) {
-       console.error("Error fetching dashboard data:", error);
-       res.status(500).render('admin/dashboard', {
-           salesChartData: { labels: [], values: [] },
-           orderChartData: { labels: [], values: [] },
-           topProducts: [],
-           topCategories: [],
-           topBrands: [],
-           salesFilter: 'monthly',
-           orderFilter: 'monthly',
-           error: "Error loading dashboard data"
-       });
-   }
-};
+    try {
+      const { salesFilter = 'yearly', orderFilter = 'yearly' } = req.query;
+  
+      // Calculate date range based on filter
+      const getDateRange = (filter) => {
+        const now = new Date();
+        switch (filter) {
+          case 'daily':
+            return { start: new Date(now.setHours(0,0,0,0)), end: new Date() };
+          case 'weekly':
+            return { start: new Date(now.setDate(now.getDate() - 7)), end: new Date() };
+          case 'monthly':
+            return { start: new Date(now.setMonth(now.getMonth() - 1)), end: new Date() };
+          case 'yearly':
+          default:
+            return { start: new Date(now.setFullYear(now.getFullYear() - 1)), end: new Date() };
+        }
+      };
+  
+      // Dashboard summary data
+      const dashboardData = {
+        totalOrders: await Order.countDocuments(), // All orders regardless of status
+        deliveredOrders: await Order.countDocuments({ orderStatus: 'Delivered' }),
+        totalUsers: await User.countDocuments({ isAdmin: false }),
+        totalProducts: await Product.countDocuments({ isListed: true }),
+        totalRevenue: await Order.aggregate([
+          { $match: { orderStatus: 'Delivered' } },
+          { $group: { _id: null, total: { $sum: '$totalPrice' } } }
+        ]).then(result => result[0]?.total || 0),
+      };
+  
+      // Sales chart data (based on delivered orders)
+      const salesRange = getDateRange(salesFilter);
+      const salesData = await Order.aggregate([
+        { $match: { 
+          orderStatus: 'Delivered',
+          placedAt: { $gte: salesRange.start, $lte: salesRange.end }
+        }},
+        { $group: {
+          _id: {
+            $dateToString: { 
+              format: salesFilter === 'daily' ? '%H' : 
+                     salesFilter === 'weekly' ? '%Y-%m-%d' : 
+                     salesFilter === 'monthly' ? '%Y-%m' : '%Y',
+              date: '$placedAt' 
+            }
+          },
+          total: { $sum: '$totalPrice' }
+        }},
+        { $sort: { '_id': 1 } }
+      ]);
+  
+      const salesChartData = {
+        labels: salesData.map(d => d._id),
+        values: salesData.map(d => d.total)
+      };
+  
+      // Order chart data (based on all orders)
+      const orderRange = getDateRange(orderFilter);
+      const orderData = await Order.aggregate([
+        { $match: { 
+          placedAt: { $gte: orderRange.start, $lte: orderRange.end }
+        }},
+        { $group: {
+          _id: {
+            $dateToString: { 
+              format: orderFilter === 'daily' ? '%H' : 
+                     orderFilter === 'weekly' ? '%Y-%m-%d' : 
+                     orderFilter === 'monthly' ? '%Y-%m' : '%Y',
+              date: '$placedAt' 
+            }
+          },
+          count: { $sum: 1 }
+        }},
+        { $sort: { '_id': 1 } }
+      ]);
+  
+      const orderChartData = {
+        labels: orderData.map(d => d._id),
+        values: orderData.map(d => d.count)
+      };
+  
+      // Top performers
+      const topProducts = await Order.aggregate([
+        { $match: { orderStatus: 'Delivered' } },
+        { $unwind: '$items' },
+        { $match: { 'items.cancelled': false, 'items.returned': false } },
+        { $group: {
+          _id: '$items.productId',
+          revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+          name: { $first: '$items.productName' }
+        }},
+        { $sort: { revenue: -1 } },
+        { $limit: 5 }
+      ]);
+  
+      const topCategories = await Order.aggregate([
+        { $match: { orderStatus: 'Delivered' } },
+        { $unwind: '$items' },
+        { $match: { 'items.cancelled': false, 'items.returned': false } },
+        { $group: {
+          _id: '$items.category',
+          revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }
+        }},
+        { $lookup: {
+          from: 'categories',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'category'
+        }},
+        { $unwind: '$category' },
+        { $project: {
+          _id: 1,
+          revenue: 1,
+          name: '$category.name'
+        }},
+        { $sort: { revenue: -1 } },
+        { $limit: 5 }
+      ]);
+  
+      const topBrands = []; // No brands as per your requirement
+  
+      // Render the dashboard
+      res.render('admin/dashboard', {
+        dashboardData,
+        salesChartData,
+        orderChartData,
+        topProducts,
+        topCategories,
+        topBrands
+      });
+  
+    } catch (error) {
+      console.error(error);
+      res.status(500).render('error', { message: 'Server Error' });
+    }
+  };
 
 // Sales Helper Functions (unchanged from previous)
 async function getYearlySales(currentDate) {

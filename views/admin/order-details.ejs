@@ -8,6 +8,7 @@
                     <p><strong>Customer Email:</strong> <%= order.userEmail || 'N/A' %></p>
                     <p><strong>Order ID:</strong> <%= order._id %></p>
                     <p><strong>Date:</strong> <%= new Date(order.placedAt).toLocaleDateString() %></p>
+                    <p><strong>Coupon Applied:</strong> ₹<%= order.couponDiscountAmount.toFixed(2) %></p>
                     <p><strong>Total Amount:</strong> ₹<%= order.totalPrice.toFixed(2) %></p>
                     <p><strong>Payment Method:</strong> <%= order.paymentMethod %></p>
                     <p><strong>Payment Status:</strong> 
@@ -16,8 +17,8 @@
                         </span>
                     </p>
                     <p><strong>Order Status:</strong>
-                        <% if (order.orderStatus === 'Cancelled' || order.orderStatus === 'Delivered') { %>
-                            <span class="badge <%= order.orderStatus === 'Cancelled' ? 'bg-danger' : 'bg-success' %>">
+                        <% if (order.orderStatus === 'Cancelled' || order.orderStatus === 'Delivered' || order.orderStatus === 'Returned') { %>
+                            <span class="badge <%= order.orderStatus === 'Cancelled' ? 'bg-danger' : order.orderStatus === 'Delivered' ? 'bg-success' : 'bg-secondary' %>">
                                 <%= order.orderStatus %>
                             </span>
                         <% } else { %>
@@ -130,8 +131,8 @@
                         if (response.ok) {
                             Swal.fire("Success!", result.message, "success");
 
-                            if (newStatus === "Cancelled" || newStatus === "Delivered") {
-                                const badgeClass = newStatus === "Cancelled" ? "bg-danger" : "bg-success";
+                            if (newStatus === "Cancelled" || newStatus === "Delivered" || newStatus === "Returned") {
+                                const badgeClass = newStatus === "Cancelled" ? "bg-danger" : newStatus === "Delivered" ? "bg-success" : "bg-secondary";
                                 statusContainer.innerHTML = `
                                     <strong>Order Status:</strong>
                                     <span class="badge ${badgeClass}">${newStatus}</span>
@@ -171,7 +172,6 @@
 
                 if (result.isConfirmed) {
                     try {
-                        // Assuming this endpoint approves all return requests for the order
                         const response = await fetch(`/admin/approve-return/${orderId}`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" }
@@ -207,7 +207,6 @@
 
                 if (result.isConfirmed) {
                     try {
-                        // Assuming this endpoint rejects all return requests for the order
                         const response = await fetch(`/admin/reject-return/${orderId}`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" }

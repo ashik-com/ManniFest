@@ -6,7 +6,6 @@ const userSchema = new mongoose.Schema({
   google_Id: { type: String, unique: true, sparse: true },
   isAdmin: { type: Boolean, default: false },
   name: { type: String, required: true },
-  wallet_balance: { type: Number, default: 0 },
   isBlocked: { type: Boolean, default: false },
   blockedreason: { type: String, default: "" },
   created_at: { type: Date, default: Date.now },

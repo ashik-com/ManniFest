@@ -1,21 +1,19 @@
 <%- include ('../user/partials/header', {name:name})%>
     <div class="profile-container-fluid">
         <div class="row">
-            <!-- Sidebar -->
+            
             <div class="col-md-3 col-12 profile-sidebar">
                 <a href="/user/profile" class="profile-active">Overview</a>
-                <a href="/user/orders">My Orders</a>
-                <a href="/user/payments">My Payments</a>
                 <a href="/user/wallet">My Wallet</a>
                 <a href="/user/addresses">My Addresses</a>
                 <a href="/user/edit-profile">My Profile</a>
                 <a href="/user/logout" class="profile-logout">Logout</a>
             </div>
 
-            <!-- Main Content -->
+            
             <div class="col-md-9 col-12 profile-main-content">
                 <div class="row g-3">
-                    <!-- Profile Card -->
+                    
                     <div class="col-md-6 col-12">
                         <div class="profile-card">
                             <div class="profile-avatar">
@@ -41,22 +39,44 @@
                     </div>
 
 
-                    <!-- Membership Card -->
                     <div class="col-md-6 col-12">
                         <div class="profile-membership-card">
-                            <h3 class="mb-2">Premium Membership</h3>
-                            <p class="text-muted mb-3">Upgrade to the premium experience now</p>
-                            <div class="profile-feature-icons d-flex justify-content-center">
-                                <img src="https://img.icons8.com/ios-filled/30/000000/delivery.png"
-                                    class="profile-feature-icon" alt="Free Shipping">
-                                <img src="https://img.icons8.com/ios-filled/30/000000/fast--v1.png"
-                                    class="profile-feature-icon" alt="Early Access">
-                                <img src="https://img.icons8.com/ios-filled/30/000000/gift.png"
-                                    class="profile-feature-icon" alt="VIP Support">
+                            <h3 class="mb-2">Your Referral Code</h3>
+                            <p class="text-muted mb-3">Share with friends to earn rewards!</p>
+                            
+                            <!-- Referral Code Display -->
+                            <div class="referral-code-display mb-3">
+                                <span id="referralCode" class="referral-code">
+                                    <%= user?.referralCode %>
+                                </span>
+                                <button class="btn btn-sm btn-outline-secondary copy-btn" 
+                                        onclick="copyReferralCode()"
+                                        title="Copy to clipboard">
+                                    <img src="https://img.icons8.com/ios-filled/20/000000/copy.png" alt="Copy">
+                                </button>
                             </div>
-                            <button class="profile-get-membership mt-3">GET MEMBERSHIP</button>
+                
+                            <!-- Share Options -->
+                            <div class="share-options d-flex justify-content-center gap-3">
+                                <button class="share-btn whatsapp" 
+                                        onclick="shareViaWhatsApp()"
+                                        title="Share via WhatsApp">
+                                    <img src="https://img.icons8.com/color/30/000000/whatsapp.png" alt="WhatsApp">
+                                </button>
+                                <button class="share-btn twitter" 
+                                        onclick="shareViaTwitter()"
+                                        title="Share via Twitter">
+                                    <img src="https://img.icons8.com/color/30/000000/twitter.png" alt="Twitter">
+                                </button>
+                                <button class="share-btn email" 
+                                        onclick="shareViaEmail()"
+                                        title="Share via Email">
+                                    <img src="https://img.icons8.com/ios-filled/30/000000/email.png" alt="Email">
+                                </button>
+                            </div>
                         </div>
                     </div>
+                    
 
                     <!-- Dashboard Cards -->
                     <div class="col-md-3 col-6">
@@ -69,13 +89,6 @@
                         </div>
                     </div>
 
-                    <div class="col-md-3 col-6">
-                        <div class="profile-dashboard-card">
-                            <img src="https://img.icons8.com/ios-filled/30/000000/credit-card.png" alt="Payments">
-                            <h6 class="profile-card-title">My Payments</h6>
-                            <p class="profile-card-text">Manage Payments</p>
-                        </div>
-                    </div>
 
                     <div class="col-md-3 col-6">
                         <div class="profile-dashboard-card">
@@ -95,15 +108,45 @@
                             </p>
                         </div>
                     </div>
-
-                   
-
-                   
                 </div>
             </div>
         </div>
     </div>
-<!-- Add Razorpay SDK (optional: move to profile.ejs if loaded globally) -->
+
+    <style>
+        .referral-code-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+    
+        .referral-code {
+            font-family: monospace;
+            font-size: 1.2rem;
+            padding: 5px 10px;
+            background: #f8f9fa;
+            border: 1px dashed #ccc;
+            border-radius: 4px;
+        }
+    
+        .share-btn {
+            background: none;
+            border: none;
+            padding: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+    
+        .share-btn:hover {
+            transform: scale(1.1);
+        }
+    
+        .copy-btn {
+            padding: 5px 10px;
+        }
+    </style>
+
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <!-- Add SweetAlert2 CDN (optional: move to profile.ejs if loaded globally) -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -111,6 +154,31 @@
         // Define wallet initialization function (could also be in wallet.js)
         function initializeWallet() {
             const addMoneyBtn = document.getElementById("addMoneyBtn");
+
+            const referralCode = "<%= user?.referralCode %>";
+    const shareMessage = `Join me using my referral code ${referralCode} and get started!`;
+
+    function copyReferralCode() {
+        navigator.clipboard.writeText(referralCode)
+            .then(() => alert('Referral code copied to clipboard!'))
+            .catch(err => console.error('Failed to copy:', err));
+    }
+
+    function shareViaWhatsApp() {
+        const url = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+        window.open(url, '_blank');
+    }
+
+    function shareViaTwitter() {
+        const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}`;
+        window.open(url, '_blank');
+    }
+
+    function shareViaEmail() {
+        const subject = 'Join me with my referral code!';
+        const body = shareMessage;
+        window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    }
     
             // Dependency checks
             if (!addMoneyBtn) {
@@ -131,7 +199,7 @@
                 return;
             }
     
-            // Validation function
+            
             function validateAmount(amount) {
                 const minAmount = 10;
                 const maxAmount = 50000;
@@ -142,10 +210,10 @@
                 if (!Number.isInteger(amount)) return "Amount must be a whole number.";
                 if (amount < minAmount) return `Amount must be at least ₹${minAmount}.`;
                 if (amount > maxAmount) return `Amount cannot exceed ₹${maxAmount}.`;
-                return null; // No error
+                return null;
             }
     
-            // Handle Add Money button click with SweetAlert2
+            
             addMoneyBtn.addEventListener("click", async function () {
                 const { value: amount } = await Swal.fire({
                     title: "Add Money to Wallet",
@@ -333,35 +401,93 @@
                 // Add Address
                 document.addEventListener("submit", async (e) => {
                     if (e.target && e.target.id === "addAddressForm") {
-                        e.preventDefault();
-    
-                        const form = e.target;
-                        const formData = new FormData(form);
-    
-                        const formDataObj = {};
-                        formData.forEach((value, key) => {
-                            formDataObj[key] = value;
-                        });
-                        console.log("this is form data", formDataObj);
-    
-                        try {
-                            const response = await fetch("/user/add-address", {
-                                method: "POST",
-                                body: formData
-                            });
-                            const data = await response.json();
-                            if (data.success) {
-                                updateAddressList(data.addresses);
-                                bootstrap.Modal.getInstance(document.getElementById("addAddressModal")).hide();
-                                form.reset();
-                                Swal.fire("Success", "Address added successfully!", "success");
-                            } else {
-                                Swal.fire("Error", data.message, "error");
-                            }
-                        } catch (err) {
-                            Swal.fire("Error", "Something went wrong!", "error");
-                        }
-                    }
+    e.preventDefault();
+
+    const form = e.target;
+    const formData = new FormData(form);
+
+    const formDataObj = {};
+    formData.forEach((value, key) => {
+        formDataObj[key] = value;
+    });
+    console.log("Form Data:", formDataObj);
+
+    // Validation function
+    function validateAddressForm(data) {
+        const errors = [];
+
+        // Full Name validation
+        if (!data.fullName || data.fullName.trim().length < 2) {
+            errors.push("Full Name is required and must be at least 2 characters long.");
+        }
+
+        // Address Line 1 validation
+        if (!data.addressLine1 || data.addressLine1.trim().length < 5) {
+            errors.push("Address Line 1 is required and must be at least 5 characters long.");
+        }
+
+        // City validation
+        if (!data.city || data.city.trim().length < 2) {
+            errors.push("City is required and must be at least 2 characters long.");
+        }
+
+        // State validation
+        if (!data.state || data.state.trim().length < 2) {
+            errors.push("State is required and must be at least 2 characters long.");
+        }
+
+        // Pin Code validation (6 digits)
+        const pinCodeRegex = /^\d{6}$/;
+        if (!data.pinCode || !pinCodeRegex.test(data.pinCode)) {
+            errors.push("Pin Code is required and must be exactly 6 digits.");
+        }
+
+        // Mobile Number validation
+        const mobileRegex = /^\d{10}$/;
+        if (!data.mobileNumber || !mobileRegex.test(data.mobileNumber)) {
+            errors.push("Mobile Number is required and must be exactly 10 digits.");
+        } else if (data.mobileNumber === "0000000000") {
+            errors.push("Mobile Number cannot be all zeros.");
+        }
+
+        // Country validation
+        if (!data.country || data.country.trim().length < 2) {
+            errors.push("Country is required and must be at least 2 characters long.");
+        }
+
+        return errors;
+    }
+
+    // Validate the form data
+    const validationErrors = validateAddressForm(formDataObj);
+    if (validationErrors.length > 0) {
+        Swal.fire({
+            icon: "error",
+            title: "Validation Error",
+            html: validationErrors.join("<br>"),
+        });
+        return; // Stop form submission if validation fails
+    }
+
+    // Proceed with form submission if validation passes
+    try {
+        const response = await fetch("/user/add-address", {
+            method: "POST",
+            body: formData,
+        });
+        const data = await response.json();
+        if (data.success) {
+            updateAddressList(data.addresses);
+            bootstrap.Modal.getInstance(document.getElementById("addAddressModal")).hide();
+            form.reset();
+            Swal.fire("Success", "Address added successfully!", "success");
+        } else {
+            Swal.fire("Error", data.message, "error");
+        }
+    } catch (err) {
+        Swal.fire("Error", "Something went wrong!", "error");
+    }
+}
                 });
     
                 // Delete Address
@@ -425,7 +551,7 @@
                         addressList.innerHTML = `<p class="text-muted">No addresses added yet.</p>`;
                     }
     
-                    // Reattach event listeners to new buttons
+                   
                     document.querySelectorAll(".profile-delete-btn").forEach(button => {
                         button.addEventListener("click", async () => {
                             const addressId = button.getAttribute("data-id");
@@ -542,31 +668,57 @@
         }
     
         function changePasswordWithCurrent() {
-            const currentPassword = document.getElementById("currentPassword").value;
-            const newPassword = document.getElementById("newPassword").value;
-            const confirmNewPassword = document.getElementById("confirmNewPassword").value;
-    
-            if (newPassword !== confirmNewPassword) {
-                Swal.fire("Error!", "New passwords do not match!", "error");
-                return;
+    const currentPassword = document.getElementById("currentPassword").value.trim();
+    const newPassword = document.getElementById("newPassword").value.trim();
+    const confirmNewPassword = document.getElementById("confirmNewPassword").value.trim();
+
+    // Password strength regex: min 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+    // Validation checks
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+        Swal.fire("Error!", "All fields are required!", "error");
+        return;
+    }
+
+    if (!passwordRegex.test(newPassword)) {
+        Swal.fire({
+            icon: "warning",
+            title: "Invalid Password!",
+            html: `Password must be at least 8 characters long and include:
+                   <br>• One uppercase letter
+                   <br>• One lowercase letter
+                   <br>• One number
+                   <br>• One special character`,
+        });
+        return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+        Swal.fire("Error!", "New passwords do not match!", "error");
+        return;
+    }
+
+    fetch("/user/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword })
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire("Success!", "Password updated successfully!", "success");
+                document.getElementById("passwordChangeModal").classList.add("d-none");
+            } else {
+                Swal.fire("Error!", data.message, "error");
             }
-    
-            fetch("/user/change-password", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ currentPassword, newPassword })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        Swal.fire("Success!", "Password updated successfully!", "success");
-                        document.getElementById("passwordChangeModal").classList.add("d-none");
-                    } else {
-                        Swal.fire("Error!", data.message, "error");
-                    }
-                })
-                .catch(error => console.error("Error:", error));
-        }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            Swal.fire("Error!", "Something went wrong. Please try again.", "error");
+        });
+}
+
     
         function sendOTP() {
             const email = document.getElementById("otpEmail").value;
@@ -588,32 +740,47 @@
         }
     
         function changePasswordWithOTP() {
-            const email = document.getElementById("otpEmail").value;
-            const otp = document.getElementById("otpCode").value;
-            const newPassword = document.getElementById("otpNewPassword").value;
-            const confirmNewPassword = document.getElementById("otpConfirmNewPassword").value;
-    
-            if (newPassword !== confirmNewPassword) {
-                Swal.fire("Error!", "New passwords do not match!", "error");
-                return;
+    const email = document.getElementById("otpEmail").value.trim();
+    const otp = document.getElementById("otpCode").value.trim();
+    const newPassword = document.getElementById("otpNewPassword").value;
+    const confirmNewPassword = document.getElementById("otpConfirmNewPassword").value;
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
+    if (newPassword !== confirmNewPassword) {
+        Swal.fire("❌ Error!", "New passwords do not match!", "error");
+        return;
+    }
+
+    if (!passwordRegex.test(newPassword)) {
+        Swal.fire("❌ Invalid Password!", 
+            `Password must be at least 8 characters long and include:
+            <br>• One uppercase letter
+            <br>• One lowercase letter
+            <br>• One special character
+            <br>• One number`,
+            "warning"
+        );
+        return;
+    }
+
+    fetch("/user/reset-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp, newPassword })
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire("✅ Success!", "Password updated successfully!", "success");
+                document.getElementById("passwordChangeModal").classList.add("d-none");
+            } else {
+                Swal.fire("❌ Error!", data.message, "error");
             }
-    
-            fetch("/user/reset-otp", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, otp, newPassword })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        Swal.fire("Success!", "Password updated successfully!", "success");
-                        document.getElementById("passwordChangeModal").classList.add("d-none");
-                    } else {
-                        Swal.fire("Error!", data.message, "error");
-                    }
-                })
-                .catch(error => console.error("Error:", error));
-        }
+        })
+        .catch(error => console.error("Error:", error));
+}
+
     
         function requestEmailChange() {
             Swal.fire({
@@ -684,6 +851,49 @@
             const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             return re.test(email);
         }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const referralCode = "<%= user?.referralCode %>";
+            const shareMessage = `Join me using my referral code ${referralCode} and get started!`;
+    
+            
+            const copyButton = document.querySelector(".copy-btn");
+            if (copyButton) {
+                copyButton.addEventListener("click", function () {
+                    navigator.clipboard.writeText(referralCode)
+                        .then(() => alert("Referral code copied to clipboard!"))
+                        .catch(err => console.error("Failed to copy:", err));
+                });
+            }
+    
+            
+            const whatsappButton = document.querySelector(".share-btn.whatsapp");
+            if (whatsappButton) {
+                whatsappButton.addEventListener("click", function () {
+                    const url = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+                    window.open(url, "_blank");
+                });
+            }
+    
+            
+            const twitterButton = document.querySelector(".share-btn.twitter");
+            if (twitterButton) {
+                twitterButton.addEventListener("click", function () {
+                    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}`;
+                    window.open(url, "_blank");
+                });
+            }
+    
+            // Share via Email
+            const emailButton = document.querySelector(".share-btn.email");
+            if (emailButton) {
+                emailButton.addEventListener("click", function () {
+                    const subject = "Join me with my referral code!";
+                    const body = shareMessage;
+                    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                });
+            }
+        });
     </script>
 
     <%- include ('../user/partials/footer')%>

@@ -4,7 +4,8 @@ const Product = require("../models/productSchema")
 const Variant = require("../models/variantSchema")
 const path = require('path')
 const Offer = require("../models/offersSchema")
-const bcrypt = require("bcrypt");
+const cloudinary = require("../utils/cloudinary"); // Adjust the path to your Cloudinary config file
+const fs = require("fs").promises;
 
 
 
@@ -78,102 +79,106 @@ exports.getAddProduct = async (req, res) => {
 
 
 exports.postAddProduct = async (req, res) => {
-    try {
-        const { name, description, category, specifications, variants, price, stock } = req.body;
-        const { meterial, sleeveType, fitType, pattern } = specifications;
+  try {
+    const { name, description, category, specifications, variants, price, stock } = req.body;
+    const { meterial, sleeveType, fitType, pattern } = specifications;
 
-        let images = req.files;
-        let productImg = [];
-        let variantImagesMap = {};  
+    let images = req.files;
+    let productImg = [];
+    let variantImagesMap = {};
 
-        console.log("Received files:", images);
+    console.log("Received files:", images);
 
-        for (let item of images) {
-            console.log("Processing file:", item.fieldname); 
+    // Process and upload images to Cloudinary
+    for (let item of images) {
+      console.log("Processing file:", item.fieldname);
 
-           
-            if (item.fieldname === "images") {
-                // productImg.push(item.path);
-            }
-            
-            else {
-                
-                let match = item.fieldname.match(/^variant_images_(\d+)(\[\])?$/);
-                if (match) {
-                    let variantIndex = parseInt(match[1], 10);
-                    if (!variantImagesMap[variantIndex]) {
-                        variantImagesMap[variantIndex] = [];
-                    }
-                    variantImagesMap[variantIndex].push(item.path);
-                }
-            }
+      // Upload to Cloudinary
+      const result = await cloudinary.uploader.upload(item.path, {
+        folder: "products", // Optional: organize images in a folder on Cloudinary
+        public_id: `${Date.now()}_${item.originalname.split(".")[0]}`, // Unique name
+      });
+
+      // Delete the temporary local file
+      await fs.unlink(item.path);
+
+      if (item.fieldname === "images") {
+        productImg.push(result.secure_url); // Store Cloudinary URL
+      } else {
+        let match = item.fieldname.match(/^variant_images_(\d+)(\[\])?$/);
+        if (match) {
+          let variantIndex = parseInt(match[1], 10);
+          if (!variantImagesMap[variantIndex]) {
+            variantImagesMap[variantIndex] = [];
+          }
+          variantImagesMap[variantIndex].push(result.secure_url); // Store Cloudinary URL
         }
-
-
-        console.log("Mapped Variant Images:", variantImagesMap); 
-
-        // const productsImg = productImg.map((fullPath) => '/' + fullPath.split('public\\')[1].replace(/\\/g, '/'));
-
-        // if (!req.files || productImg.length < 3) {
-        //     return res.status(400).json({ message: "At least 3 images are required" });
-        // }
-
-        const newProduct = new Product({
-            name,
-            description,
-            category,
-            baseprice: price,
-            stock,
-            // images: productsImg,
-            specifications: { meterial, sleeveType, fitType, pattern }
-        });
-
-        const savedProduct = await newProduct.save();
-
-        let variantIds = [];
-
-        
-        for (let i = 0; i < variants.length; i++) {
-            let item = variants[i];
-
-            if (!item.color || !item.size || !item.price || !item.stock) {
-                return res.status(400).json({ message: "All variant fields are required!" });
-            }
-
-            
-            let variantImgPaths = variantImagesMap[i]
-                ? variantImagesMap[i].map((fullPath) => '/' + fullPath.split('public\\')[1].replace(/\\/g, '/'))
-                : [];
-
-            console.log(`Variant ${i} images before saving:`, variantImgPaths); 
-
-            const newVariant = new Variant({
-                productId: savedProduct._id,
-                color: item.color.trim(),
-                size: item.size.trim(),
-                price: item.price,
-                stock: item.stock,
-                images: variantImgPaths
-            });
-
-            console.log("Saving Variant:", newVariant); 
-
-            const savedVariant = await newVariant.save();
-            variantIds.push(savedVariant._id);
-        }
-
-        
-        savedProduct.variants = variantIds;
-        await savedProduct.save();
-
-        return res.status(201).json({ success: true, message: "Product added successfully!", product: savedProduct });
-
-    } catch (error) {
-        console.error("Error adding product:", error);
-        return res.status(500).json({ message: "Internal Server Error" });
+      }
     }
-};
 
+    console.log("Mapped Variant Images:", variantImagesMap);
+
+    // Validation for minimum images (if still required)
+    if (variantImagesMap.length < 3) {
+      return res.status(400).json({ message: "At least 3 images are required" });
+    }
+
+    // Create new product
+    const newProduct = new Product({
+      name,
+      description,
+      category,
+      baseprice: price,
+      stock,
+      images: productImg, // Use Cloudinary URLs directly
+      specifications: { meterial, sleeveType, fitType, pattern },
+    });
+
+    const savedProduct = await newProduct.save();
+
+    let variantIds = [];
+
+    // Process variants
+    for (let i = 0; i < variants.length; i++) {
+      let item = typeof variants[i] === "string" ? JSON.parse(variants[i]) : variants[i]; // Handle if variants is a JSON string
+
+      if (!item.color || !item.size || !item.price || !item.stock) {
+        return res.status(400).json({ message: "All variant fields are required!" });
+      }
+
+      let variantImgPaths = variantImagesMap[i] || [];
+
+      console.log(`Variant ${i} images before saving:`, variantImgPaths);
+
+      const newVariant = new Variant({
+        productId: savedProduct._id,
+        color: item.color.trim(),
+        size: item.size.trim(),
+        price: item.price,
+        stock: item.stock,
+        images: variantImgPaths, // Use Cloudinary URLs
+      });
+
+      console.log("Saving Variant:", newVariant);
+
+      const savedVariant = await newVariant.save();
+      variantIds.push(savedVariant._id);
+    }
+
+    // Update product with variant IDs
+    savedProduct.variants = variantIds;
+    await savedProduct.save();
+
+    return res.status(201).json({
+      success: true,
+      message: "Product added successfully!",
+      product: savedProduct,
+    });
+  } catch (error) {
+    console.error("Error adding product:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
 
 
 exports.getEditProduct = async (req, res) => {

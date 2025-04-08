@@ -57,7 +57,7 @@ exports.getAddProductOffer = async (req, res) => {
     }
 };
 
-// Add an offer (unified for both product and category)
+
 exports.addOffer = async (req, res) => {
     const { offerType, productId, categoryId, discountType, discountValue, startDate, endDate, categoryName } = req.body;
 
@@ -110,15 +110,7 @@ exports.addOffer = async (req, res) => {
         }
 
         // Check for existing offer
-        const existingOffer = await Offer.findOne({
-            $or: [
-                { type: 'product', productId: offerType === 'product' ? productId : null },
-                { type: 'category', categoryId: offerType === 'category' ? categoryId : null },
-            ],
-        });
-        if (existingOffer) {
-            return res.status(400).json({ success: false, message: `An offer already exists for this ${offerType}` });
-        }
+       
 
         // Create new offer
         const newOffer = new Offer({

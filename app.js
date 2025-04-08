@@ -61,7 +61,8 @@ app.use(helmet({
         "'self'",
         "data:",
         "http://localhost:4000", 
-        "https://img.icons8.com" 
+        "https://img.icons8.com",
+        "https://res.cloudinary.com", 
       ],
       connectSrc: ["'self'", "https://api.razorpay.com",
         "https://api.razorpay.com", 

@@ -129,7 +129,7 @@
                                     <div class="form-check d-flex align-items-center">
                                         <input class="form-check-input me-3" type="radio" name="paymentMethod" id="codPayment" value="COD" checked>
                                         <label class="form-check-label" for="codPayment">
-                                            Pay with cash when your order is delivered. Additional ₹5 COD fee applies.
+                                            Pay with cash when your order is delivered. 
                                         </label>
                                     </div>
                                 </div>
@@ -196,11 +196,23 @@
                                 <li class="d-flex justify-content-between py-2">
                                     <div>
                                         <strong><%= item.productId.name %></strong>
-                                        <small>(<%= item.variantId.size %>, <%= item.variantId.color %>)</small>
-                                        <br>Qty: <%= item.quantity %>
+                                        <small>(<%= item.variantId.size %>, <%= item.variantId.color %>)</small> <small>(X<%= item.quantity %>)</small>
+                                        
                                     </div>
-                                    <span>₹<%= (item.price * item.quantity).toFixed(2) %></span>
+                                    <span>₹<%= (item.originalPrice * item.quantity).toFixed(2) %></span>
                                 </li>
+                                <% if(item.discountPercentage){%>
+
+                                <li class="d-flex justify-content-between py-2">
+                                    <div>
+                                        <small style="color: green;">Discount: <%=item.discountPercentage %>% </small>
+                                        
+                                        
+                                    </div>
+                                    <span style="color: green;"> -₹<%=  ((item.originalPrice * item.quantity) * item.discountPercentage/100).toFixed(2) %></span>
+                                </li>
+                            <%}%>
+                              
                             <% }) %>
                         <% } else { %>
                             <li class="py-2">Your cart is empty.</li>
@@ -212,14 +224,14 @@
                             Subtotal <span>₹<%= subtotal.toFixed(2) %></span>
                         </li>
                         <li class="d-flex justify-content-between py-2">
-                            Shipping <span id="shippingCost">₹<%= shippingCost.toFixed(2) %></span>
+                         Shipping Charges <span id="shippingCost" style="color: green;">Free</span>
                         </li>
                         <li class="d-flex justify-content-between py-2 d-none" id="discountRow">
-                            Discount <span id="discountAmount">-₹0.00</span>
+                            Discount <span id="discountAmount" style="color: green;">-₹0.00</span>
                         </li>
                         <li class="d-flex justify-content-between py-2 d-none" id="couponDiscountRow">
                             Coupon Discount (<span id="couponCodeDisplay"></span>) 
-                            <span id="couponDiscountAmount">-₹0.00</span>
+                            <span id="couponDiscountAmount" style="color: green;">-₹0.00</span>
                         </li>
                         <li class="d-flex justify-content-between py-2 fw-bold">
                             Total <span id="orderTotal">₹<%= totalAmount.toFixed(2) %></span>
@@ -378,7 +390,7 @@
             const couponCode = document.getElementById("couponName").textContent || "";
             
             const grossPrice = subtotal; // Subtotal is gross price (no item-level discounts yet)
-            let discountAmount = 0; // Placeholder for manual discounts
+            let discountAmount = 0; 
             let couponDiscountAmount = 0;
             let total = grossPrice + shippingCost;
     

@@ -23,25 +23,36 @@ const razorpayInstance = new Razorpay({
 });
 
 exports.getWallet = async (req, res) => {
-    try {
-        const name = req.session.name || "";
-        const user = await User.findOne({ email: req.session.email }).lean(); 
+  try {
+      const name = req.session.name || "";
+      const user = await User.findOne({ email: req.session.email }).lean();
 
-        if (!user) {
-            return res.status(404).send("User not found");
-        }
+      if (!user) {
+          return res.status(404).send("User not found");
+      }
 
-        const wallet = await Wallet.findOne({ userId: user._id }).lean();
+      // Fetch wallet and sort transactions by date in descending order
+      const wallet = await Wallet.findOne({ userId: user._id })
+          .lean()
+          .then(wallet => {
+              if (wallet && wallet.transactions) {
+                  // Sort transactions by date (assuming there's a date field)
+                  wallet.transactions.sort((a, b) => {
+                      return new Date(b.date) - new Date(a.date);
+                  });
+              }
+              return wallet;
+          });
 
-        if (req.xhr) {
-            return res.render("user/partials/wallet", { name, user, wallet });
-        }
+      if (req.xhr) {
+          return res.render("user/partials/wallet", { name, user, wallet });
+      }
 
-        res.render("user/partials/wallet", { name, user, wallet });
-    } catch (error) {
-        console.error("Error fetching wallet:", error.message);
-        res.status(500).send("Internal Server Error");
-    }
+      res.render("user/partials/wallet", { name, user, wallet });
+  } catch (error) {
+      console.error("Error fetching wallet:", error.message);
+      res.status(500).send("Internal Server Error");
+  }
 };
 
 
@@ -57,17 +68,17 @@ exports.createWallet =async (req, res) => {
         });
       }
   
-      // Razorpay expects amount in paise (multiply by 100)
+      
       const orderOptions = {
-        amount: Math.round(amount * 100), // e.g., ₹100 -> 10000 paise
+        amount: Math.round(amount * 100), 
         currency: 'INR',
         receipt: `receipt_${Date.now()}`,
       };
   
-      // Create order
+      
       const order = await razorpayInstance.orders.create(orderOptions);
   
-      // Send success response
+      
       res.json({
         success: true,
         key_id: razorpayInstance.key_id, // Send key_id to frontend
@@ -157,6 +168,7 @@ exports.verifyWalletPayment = async (req, res) => {
       });
       await walletTransaction.save();
 
+      const newBalance = wallet.balance + amountInRupees
 
       const ledgerEntry = new LedgerEntry({
         transactionId,
@@ -391,15 +403,15 @@ exports.payWithWallet = async (req, res) => {
           variantColor: cartItem.variantId?.color || "N/A",
           variantSize: cartItem.variantId?.size || "N/A",
           variantImage: cartItem.variantId?.images[0] || cartItem.productId.images[0],
-          price: priceWithOffer.discountedPrice, // Use discounted price for item price
-          discount: priceWithOffer.originalPrice - priceWithOffer.discountedPrice, // Item-level discount
+          price: priceWithOffer.originalPrice, 
+          discount: item.originalPrice - priceWithOffer.originalPrice, 
           quantity: item.quantity,
         };
       })
     );
 
-    const calculatedShippingCost = parseFloat(shippingCost); // From frontend
-    let calculatedDiscountAmount = parseFloat(discountAmount) || 0; // Manual discounts (currently 0)
+    const calculatedShippingCost = parseFloat(shippingCost); 
+    let calculatedDiscountAmount = parseFloat(discountAmount) || 0; 
     let calculatedCouponDiscountAmount = 0;
 
     let couponId = null;

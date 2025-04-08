@@ -4,6 +4,7 @@ const Product = require("../models/productSchema")
 const variant = require("../models/variantSchema")
 const bcrypt = require("bcrypt");
 const nodemailer = require('nodemailer')
+const Wallet = require("../models/walletSchema")
 const Offer = require("../models/offersSchema")
 require("dotenv").config();
 
@@ -226,8 +227,12 @@ exports.sentOtp = async (req, res) => {
 }
 
 
-exports.verifyOtp =async (req, res) => {
+const { v4: uuidv4 } = require('uuid'); // Ensure this is imported
+
+exports.verifyOtp = async (req, res) => {
   const { email, otp, newUser } = req.body;
+
+
 
   // Validate required fields
   if (!email || !otp) {
@@ -238,28 +243,25 @@ exports.verifyOtp =async (req, res) => {
     return res.status(400).json({ success: false, message: "User data is required" });
   }
 
-  // Check OTP existence
+  // Check OTP existence and validity
   const storedOtp = otpStore[email];
+  console.log("otp testing here",storedOtp)
   if (!storedOtp) {
     return res.status(400).json({ success: false, message: "OTP expired or not found" });
   }
 
-  // Check OTP expiration
   if (Date.now() > storedOtp.expiresAt) {
     delete otpStore[email];
     return res.status(400).json({ success: false, message: "OTP expired" });
   }
 
-  // Verify OTP
   if (storedOtp.otp !== otp) {
     return res.status(400).json({ success: false, message: "Invalid OTP" });
   }
 
-  // OTP is valid, clean up
   delete otpStore[email];
 
   try {
-
     let referredByUser = null;
     if (newUser.referredBy) {
       referredByUser = await User.findOne({ referralCode: newUser.referredBy });
@@ -267,25 +269,59 @@ exports.verifyOtp =async (req, res) => {
         return res.status(400).json({ success: false, message: "Invalid referral code!" });
       }
     }
+
     const userData = {
       ...newUser,
       referredBy: referredByUser ? referredByUser.referralCode : null,
     };
+
     // Create and save user
     const user = new User(userData);
     await user.save();
 
-    if (referredByUser) {
-      referredByUser.wallet_balance += 50; // Credit ₹50 to referrer
-      await referredByUser.save();
+    // Create or find wallet for new user
+    let userWallet = await Wallet.findOne({ userId: user._id });
+    if (!userWallet) {
+      userWallet = new Wallet({
+        userId: user._id,
+        balance: 0,
+        transactions: []
+      });
+      await userWallet.save();
     }
 
-    // Set session data (assuming session middleware is configured)
+    // Handle referrer bonus if applicable
+    if (referredByUser) {
+      let referrerWallet = await Wallet.findOne({ userId: referredByUser._id });
+      if (!referrerWallet) {
+        referrerWallet = new Wallet({
+          userId: referredByUser._id,
+          balance: 0,
+          transactions: []
+        });
+      }
+
+      const referralAmount = 50;
+      const transactionDate = new Date();
+
+      // Update referrer wallet with transaction
+      referrerWallet.balance += referralAmount;
+      referrerWallet.transactions.push({
+        amount: referralAmount,
+        type: "credit", // Matches enum in schema
+        description: "Referral bonus for new user signup",
+        date: transactionDate,
+        orderId: null // No order associated with referral bonus
+      });
+
+      await referrerWallet.save();
+    }
+
+    // Set session data
     req.session.name = user.name;
     req.session.email = user.email;
-    req.session.userId = user._id; 
+    req.session.userId = user._id;
 
-    // Send single response
     return res.status(200).json({
       success: true,
       message: "OTP verified and user registered successfully",
@@ -293,7 +329,8 @@ exports.verifyOtp =async (req, res) => {
         name: user.name,
         email: user.email,
         referralCode: user.referralCode,
-      } // Only send safe user data
+        wallet_balance: userWallet.balance
+      }
     });
   } catch (error) {
     console.error("Error saving user:", error);

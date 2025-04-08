@@ -35,6 +35,8 @@
                     <td>
                         <% if (item.cancelled) { %>
                             <span class="badge bg-danger">Cancelled</span>
+                        <% } else if (item.returned) { %>
+                            <span class="badge bg-secondary">Returned</span>
                         <% } else { %>
                             <span class="badge <%= order.orderStatus === 'Cancelled' ? 'bg-danger' : order.orderStatus === 'Delivered' ? 'bg-success' : 'bg-info' %>">
                                 <%= order.orderStatus %>

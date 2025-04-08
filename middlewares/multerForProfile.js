@@ -26,11 +26,11 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// ✅ Use .single() instead of .any()
+
 const profile = multer({
     storage: storage,
     fileFilter: fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
-}).single("profilePicture"); // ⬅️ Must match the frontend FormData field
+    limits: { fileSize: 5 * 1024 * 1024 }
+}).single("profilePicture"); 
 
 module.exports = profile;

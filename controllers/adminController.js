@@ -8,6 +8,7 @@ const bcrypt = require("bcrypt");
 const Wallet = require("../models/walletSchema")
 const WalletTransaction = require("../models/walletTransactionSchema")
 const LedgerEntry = require("../models/ledger")
+const Coupon = require("../models/couponSchema")
 const { v4: uuidv4 } = require('uuid');
 
 
@@ -200,30 +201,57 @@ exports.approveReturn = async (req, res) => {
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
+
     const item = order.items[itemIndex];
     if (!item || !item.returnRequested || item.returned) {
       return res.status(400).json({ success: false, message: "Item not found, no return requested, or already returned" });
     }
+
+    
     item.returned = true;
     item.returnedAt = new Date();
     item.returnRequested = false;
+
     const variant = await Variant.findById(item.variantId);
     if (!variant) {
       return res.status(400).json({ success: false, message: "Variant not found" });
     }
     variant.stock += item.quantity;
     await variant.save();
+
+    
     const activeItems = order.items.filter(i => !i.cancelled);
     if (activeItems.every(i => i.returned)) {
       order.orderStatus = "Returned";
     }
+
+    let couponMinAmount;
+    if(order.couponApplied){
+      const coupon = await Coupon.findById(order.couponApplied);
+      const { discountType, discountValue, minimumPurchase, maximumDiscount } = coupon;
+      couponMinAmount= minimumPurchase
+
+    }
+    
     const itemSubtotal = item.price * item.quantity;
-    const deliveryCharge = order.shippingCost || order.deliveryCharge || 0;
-    const refundAmount = Math.max(itemSubtotal - deliveryCharge, 0);
+    let refundAmount = 0;
+
+    const filteredItems = order.items.filter(item => !item.returned && !item.cancelled);
+    console.log(filteredItems);
+
+    if(filteredItems.length>=1){
+      order.totalPrice - itemSubtotal > couponMinAmount ? refundAmount=itemSubtotal : refundAmount = itemSubtotal - order.couponDiscountAmount
+    }else{
+      refundAmount = itemSubtotal
+    }
+
+
+   
     const user = await User.findById(order.userId);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
+
     let wallet = await Wallet.findOne({ userId: user._id });
     if (!wallet) {
       wallet = new Wallet({
@@ -232,6 +260,7 @@ exports.approveReturn = async (req, res) => {
         transactions: []
       });
     }
+
     if (refundAmount > 0) {
       const transactionId = uuidv4();
       const transactionDate = new Date();
@@ -243,6 +272,7 @@ exports.approveReturn = async (req, res) => {
         date: transactionDate
       });
       await wallet.save();
+
       const walletTransaction = new WalletTransaction({
         transactionId,
         userId: user._id,
@@ -255,24 +285,14 @@ exports.approveReturn = async (req, res) => {
       });
       await walletTransaction.save();
     }
-    const ledgerEntry = new LedgerEntry({
-      transactionId,
-      userId: user._id,
-      transactionDate,
-      transactionType: 'CREDIT',
-      amount: refundAmount,
-      description: `Refund for return of ${item.productName} (Order: ${orderId})`,
-      orderId,
-      paymentId: null,
-      balanceAfter: wallet.balance
-    });
-    await ledgerEntry.save();
+
     await order.save();
+
     res.json({
       success: true,
       message: refundAmount > 0
-        ? `Return approved. $${refundAmount.toFixed(2)} refunded to user's wallet (delivery charge deducted) and stock updated.`
-        : "Return approved and stock updated. No refund due to delivery charge.",
+        ? `Return approved. ₹${refundAmount.toFixed(2)} refunded to user's wallet.`
+        : "Return approved. No refund applicable.",
       balance: wallet.balance
     });
   } catch (error) {

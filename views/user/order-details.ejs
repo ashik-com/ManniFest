@@ -33,11 +33,13 @@
                             <dd class="col-8"><%= order._id %></dd>
                             <dt class="col-4 fw-medium">Date:</dt>
                             <dd class="col-8"><%= new Date(order.placedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) %></dd>
+                            <dt class="col-4 fw-medium"> Coupon Discount:</dt>
+                            <dd class="col-8"> ₹<%= order.couponDiscountAmount %></dd>
                             <dt class="col-4 fw-medium">Total:</dt>
                             <dd class="col-8">
-                                $<%= order.totalPrice.toFixed(2) %>
+                                ₹<%= order.totalPrice.toFixed(2) %>
                                 <% if (order.items.some(item => item.cancelled)) { %>
-                                    <small class="text-muted">(Originally $<%= order.items.reduce((sum, item) => sum + (item.quantity * item.price), 0).toFixed(2) %>)</small>
+                                    <small class="text-muted">(Originally  ₹<%= order.items.reduce((sum, item) => sum + (item.quantity * item.price), 0).toFixed(2) %>)</small>
                                 <% } %>
                             </dd>
                             <dt class="col-4 fw-medium">Payment:</dt>
@@ -122,8 +124,8 @@
                                     </td>
                                     <td><%= item.variantSize %>, <%= item.variantColor %></td>
                                     <td><%= item.quantity %></td>
-                                    <td>$<%= item.price.toFixed(2) %></td>
-                                    <td>$<%= (item.quantity * item.price).toFixed(2) %></td>
+                                    <td> ₹<%= (item.price + item.discount).toFixed(2) %></td>
+                                    <td> ₹<%= (item.quantity * item.price).toFixed(2) %></td>
                                     <td>
                                         <% if ((order.orderStatus === 'Pending' || order.orderStatus === 'Processing') && !item.cancelled) { %>
                                             <button class="btn btn-sm btn-outline-danger cancel-item-btn" data-order-id="<%= order._id %>" data-item-index="<%= index %>">

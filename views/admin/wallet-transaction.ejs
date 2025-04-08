@@ -5,7 +5,6 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2>Wallet Transactions</h2>
                 <input style="width: 400px;" type="text" id="searchInput" class="form-control" placeholder="Search by User ID or Transaction ID..." value="<%= searchQuery %>">
-                <!-- Optional: Add a button if you want additional actions -->
             </div>
             <div class="card">
                 <table class="table table-striped table-bordered">
@@ -19,7 +18,7 @@
                             <th>Amount</th>
                             <th>Source</th>
                             <th>Order ID</th>
-                            
+                            <th>Action</th> 
                         </tr>
                     </thead>
                     <tbody id="transactionsTableBody">
@@ -38,7 +37,20 @@
                                     <td>₹<%= transaction.amount.toFixed(2) %></td>
                                     <td><%= transaction.source || 'N/A' %></td>
                                     <td><%= transaction.orderId || 'N/A' %></td>
-                                    
+                                    <td>
+                                        <% if (transaction.source && 
+                                            (transaction.source.toLowerCase().includes('return') || 
+                                             transaction.source.toLowerCase().includes('cancel')) && 
+                                            transaction.orderId) { %>
+                                            <a href="/admin/order-details/<%= transaction.orderId %>" 
+                                               class="btn btn-sm btn-primary"
+                                               title="View Order Details">
+                                                View 
+                                            </a>
+                                        <% } else { %>
+                                            -
+                                        <% } %>
+                                    </td>
                                 </tr>
                             <% }) %>
                         <% } else { %>
@@ -65,4 +77,16 @@
         </div>
     </div>
 </div>
+
+<!-- Optional: Add some styling -->
+<style>
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    .table td {
+        vertical-align: middle;
+    }
+</style>
+
 <%- include('../admin/partials/footer') %>

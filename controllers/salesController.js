@@ -8,7 +8,9 @@ const ExcelJS = require("exceljs");
 
 exports.getSalesReport = async (req, res) => {
   try {
-    const { type, startDate, endDate } = req.query;
+    const { type, startDate, endDate, page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
 
     // Determine date range
     let start, end;
@@ -36,22 +38,42 @@ exports.getSalesReport = async (req, res) => {
 
     // Summary: sales count, order amount, discount
     const summary = await Order.aggregate([
-      { $match: { placedAt: { $gte: start, $lte: end }, paymentStatus: "Paid" } },
+      { 
+        $match: { 
+          placedAt: { $gte: start, $lte: end }, 
+          paymentStatus: "Paid" 
+        } 
+      },
       {
         $lookup: {
           from: "coupons",
           localField: "couponApplied",
           foreignField: "_id",
-          as: "coupon",
-        },
+          as: "coupon"
+        }
       },
-      { $unwind: { path: "$coupon", preserveNullAndEmptyArrays: true } },
+      { 
+        $unwind: { 
+          path: "$coupon", 
+          preserveNullAndEmptyArrays: true 
+        } 
+      },
       {
         $group: {
           _id: null,
           orderCount: { $sum: 1 },
           totalOrderAmount: { $sum: "$totalPrice" },
-          totalDiscount: {
+          totalItemDiscount: {
+            $sum: {
+              $sum: {
+                $map: {
+                  input: "$items",
+                  in: { $multiply: ["$$this.discount", "$$this.quantity"] }
+                }
+              }
+            }
+          },
+          totalCouponDiscount: {
             $sum: {
               $cond: {
                 if: { $eq: ["$coupon", null] },
@@ -59,26 +81,48 @@ exports.getSalesReport = async (req, res) => {
                 else: {
                   $cond: {
                     if: { $eq: ["$coupon.discountType", "percentage"] },
-                    then: { $multiply: ["$totalPrice", "$coupon.discountValue", 0.01] },
-                    else: "$coupon.discountValue",
-                  },
-                },
-              },
-            },
-          },
-        },
+                    then: { 
+                      $multiply: [
+                        "$totalPrice",
+                        "$coupon.discountValue",
+                        0.01
+                      ] 
+                    },
+                    else: "$coupon.discountValue"
+                  }
+                }
+              }
+            }
+          }
+        }
       },
       {
         $project: {
           orderCount: 1,
           totalOrderAmount: 1,
-          totalDiscount: 1,
-          netSales: { $subtract: ["$totalOrderAmount", "$totalDiscount"] },
-        },
-      },
+          totalDiscount: { 
+            $sum: ["$totalItemDiscount", "$totalCouponDiscount"] 
+          },
+          netSales: { 
+            $subtract: [
+              "$totalOrderAmount", 
+              { $sum: ["$totalItemDiscount", "$totalCouponDiscount"] }
+            ] 
+          }
+        }
+      }
     ]);
 
-    // Sales trend with product names
+    // Count total orders for pagination
+    const totalOrdersResult = await Order.aggregate([
+      { $match: { placedAt: { $gte: start, $lte: end }, paymentStatus: "Paid" } },
+      { $unwind: "$items" },
+      { $group: { _id: null, total: { $sum: 1 } } }
+    ]);
+    const totalOrders = totalOrdersResult[0]?.total || 0;
+    const totalPages = Math.ceil(totalOrders / limitNum);
+
+    // Sales trend with product names (paginated)
     const trend = await Order.aggregate([
       { $match: { placedAt: { $gte: start, $lte: end }, paymentStatus: "Paid" } },
       { $unwind: "$items" },
@@ -99,6 +143,8 @@ exports.getSalesReport = async (req, res) => {
         },
       },
       { $sort: { _id: 1 } },
+      { $skip: (pageNum - 1) * limitNum },
+      { $limit: limitNum }
     ]);
 
     // Top products
@@ -148,6 +194,7 @@ exports.getSalesReport = async (req, res) => {
       topProducts,
       topCategories,
       filters: { type: type || "monthly", startDate: start.toISOString().split("T")[0], endDate: end.toISOString().split("T")[0] },
+      pagination: { currentPage: pageNum, totalPages, limit: limitNum }
     };
 
     res.render("admin/sales-reports", report);
@@ -162,14 +209,121 @@ exports.downloadSalesReport = async (req, res) => {
     const { format = "pdf", type, startDate, endDate } = req.query;
     console.log("Download request received:", { format, type, startDate, endDate });
 
-    req.query = { type, startDate, endDate };
-    const report = await new Promise((resolve) => {
-      exports.getSalesReport(req, {
-        render: (view, data) => resolve(data),
-        status: () => ({ send: () => {} }),
-      });
-    });
-    console.log("Report data prepared:", report);
+    // Determine date range (same as getSalesReport)
+    let start, end;
+    switch (type) {
+      case "daily":
+        start = moment().startOf("day").toDate();
+        end = moment().endOf("day").toDate();
+        break;
+      case "weekly":
+        start = moment().subtract(6, "days").startOf("day").toDate();
+        end = moment().endOf("day").toDate();
+        break;
+      case "yearly":
+        start = moment().startOf("year").toDate();
+        end = moment().endOf("year").toDate();
+        break;
+      case "custom":
+        start = startDate ? new Date(startDate) : moment().subtract(30, "days").toDate();
+        end = endDate ? new Date(endDate) : new Date();
+        break;
+      default: // Monthly
+        start = moment().startOf("month").toDate();
+        end = moment().endOf("month").toDate();
+    }
+
+    // Fetch full report data (no pagination)
+    const summary = await Order.aggregate([
+      { $match: { placedAt: { $gte: start, $lte: end }, paymentStatus: "Paid" } },
+      { $lookup: { from: "coupons", localField: "couponApplied", foreignField: "_id", as: "coupon" } },
+      { $unwind: { path: "$coupon", preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: null,
+          orderCount: { $sum: 1 },
+          totalOrderAmount: { $sum: "$totalPrice" },
+          totalItemDiscount: { $sum: { $sum: { $map: { input: "$items", in: { $multiply: ["$$this.discount", "$$this.quantity"] } } } } },
+          totalCouponDiscount: {
+            $sum: {
+              $cond: {
+                if: { $eq: ["$coupon", null] }, then: 0,
+                else: { $cond: { if: { $eq: ["$coupon.discountType", "percentage"] }, then: { $multiply: ["$totalPrice", "$coupon.discountValue", 0.01] }, else: "$coupon.discountValue" } }
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          orderCount: 1,
+          totalOrderAmount: 1,
+          totalDiscount: { $sum: ["$totalItemDiscount", "$totalCouponDiscount"] },
+          netSales: { $subtract: ["$totalOrderAmount", { $sum: ["$totalItemDiscount", "$totalCouponDiscount"] }] }
+        }
+      }
+    ]);
+
+    const trend = await Order.aggregate([
+      { $match: { placedAt: { $gte: start, $lte: end }, paymentStatus: "Paid" } },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$placedAt" } },
+          orders: {
+            $push: {
+              orderId: "$_id",
+              productName: "$items.productName",
+              paymentMethod: "$paymentMethod",
+              orderStatus: "$orderStatus",
+              totalPrice: "$totalPrice",
+              discount: { $ifNull: ["$couponDiscountAmount", 0] },
+            },
+          },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const topProducts = await Order.aggregate([
+      { $match: { placedAt: { $gte: start, $lte: end }, paymentStatus: "Paid" } },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.productId",
+          productName: { $first: "$items.productName" },
+          totalSold: { $sum: "$items.quantity" },
+          totalRevenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
+        },
+      },
+      { $sort: { totalRevenue: -1 } },
+      { $limit: 5 },
+    ]);
+
+    const topCategories = await Order.aggregate([
+      { $match: { placedAt: { $gte: start, $lte: end }, paymentStatus: "Paid" } },
+      { $unwind: "$items" },
+      { $lookup: { from: "categories", localField: "items.category", foreignField: "_id", as: "categoryInfo" } },
+      { $unwind: "$categoryInfo" },
+      {
+        $group: {
+          _id: "$items.category",
+          categoryName: { $first: "$categoryInfo.name" },
+          totalSold: { $sum: "$items.quantity" },
+          totalRevenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
+        },
+      },
+      { $sort: { totalRevenue: -1 } },
+      { $limit: 5 },
+    ]);
+
+    const report = {
+      summary: summary[0] || { orderCount: 0, totalOrderAmount: 0, totalDiscount: 0, netSales: 0 },
+      trend,
+      topProducts,
+      topCategories,
+      filters: { type: type || "monthly", startDate: start.toISOString().split("T")[0], endDate: end.toISOString().split("T")[0] },
+    };
 
     if (format === "pdf") {
       const doc = new PDFDocument({ margin: 50 });
@@ -177,11 +331,13 @@ exports.downloadSalesReport = async (req, res) => {
       res.setHeader("Content-Disposition", `attachment; filename=sales-report-${Date.now()}.pdf`);
       doc.pipe(res);
 
+      // Header
       doc.fontSize(24).font("Helvetica-Bold").text("MANNIFEST E-COM", { align: "center" });
       doc.fontSize(16).font("Helvetica").text("Sales Report", { align: "center" });
       doc.fontSize(10).text(`Period: ${report.filters.startDate} to ${report.filters.endDate}`, { align: "center" });
       doc.moveDown(2);
 
+      // Summary
       doc.fontSize(14).font("Helvetica-Bold").text("Summary", 50, doc.y, { underline: true });
       doc.moveDown(0.5);
       doc.fontSize(12).font("Helvetica")
@@ -191,53 +347,70 @@ exports.downloadSalesReport = async (req, res) => {
         .text(`Net Sales: ₹${report.summary.netSales.toFixed(2)}`, 70);
       doc.moveDown(2);
 
+      // Sales Trend Table
       doc.fontSize(14).font("Helvetica-Bold").text("Sales Trend", 50, doc.y, { underline: true });
       doc.moveDown(0.5);
 
       const tableTop = doc.y;
-      const columnWidth = 90;
+      const columnWidth = 80; // Adjusted for 7 columns
       doc.fontSize(10).font("Helvetica-Bold");
       doc.text("Period", 50, tableTop, { width: columnWidth });
-      doc.text("Order ID", 140, tableTop, { width: columnWidth });
-      doc.text("Product", 230, tableTop, { width: columnWidth });
-      doc.text("Payment", 320, tableTop, { width: columnWidth });
-      doc.text("Status", 410, tableTop, { width: columnWidth });
-      doc.text("Discount",410,tableTop,{width:columnWidth}),
-      doc.text("Total (₹)", 500, tableTop, { width: columnWidth, align: "right" });
+      doc.text("Order ID", 130, tableTop, { width: columnWidth });
+      doc.text("Product", 210, tableTop, { width: columnWidth });
+      doc.text("Payment", 290, tableTop, { width: columnWidth });
+      doc.text("Status", 370, tableTop, { width: columnWidth });
+      doc.text("Discount (₹)", 450, tableTop, { width: columnWidth, align: "right" });
+      doc.text("Total (₹)", 530, tableTop, { width: columnWidth, align: "right" });
 
-      doc.moveTo(50, tableTop + 15).lineTo(590, tableTop + 15).stroke();
+      doc.moveTo(50, tableTop + 15).lineTo(610, tableTop + 15).stroke();
       let position = tableTop + 25;
 
       doc.fontSize(10).font("Helvetica");
       report.trend.forEach((t) => {
-        doc.text(t._id, 50, position, { width: columnWidth });
         t.orders.forEach((order, index) => {
-          if (index > 0) position += 20;
-          doc.text(order.orderId.toString(), 140, position, { width: columnWidth });
-          doc.text(order.productName || "Unknown", 230, position, { width: columnWidth });
-          doc.text(order.paymentMethod || "N/A", 320, position, { width: columnWidth });
-          doc.text(order.orderStatus || "N/A", 410, position, { width: columnWidth });
-          doc.text(order.couponDiscountAmount ||"N/A",position,410,{width:columnWidth}),
-          doc.text(`₹${(order.totalPrice || 0).toFixed(2)}`, 500, position, { width: columnWidth, align: "right" });
+          if (position > doc.page.height - 50) {
+            doc.addPage();
+            position = 50;
+            doc.fontSize(10).font("Helvetica-Bold");
+            doc.text("Period", 50, position - 25, { width: columnWidth });
+            doc.text("Order ID", 130, position - 25, { width: columnWidth });
+            doc.text("Product", 210, position - 25, { width: columnWidth });
+            doc.text("Payment", 290, position - 25, { width: columnWidth });
+            doc.text("Status", 370, position - 25, { width: columnWidth });
+            doc.text("Discount (₹)", 450, position - 25, { width: columnWidth, align: "right" });
+            doc.text("Total (₹)", 530, position - 25, { width: columnWidth, align: "right" });
+            doc.moveTo(50, position - 10).lineTo(610, position - 10).stroke();
+          }
+          doc.text(t._id, 50, position, { width: columnWidth });
+          doc.text(order.orderId.toString(), 130, position, { width: columnWidth });
+          doc.text(order.productName || "Unknown", 210, position, { width: columnWidth });
+          doc.text(order.paymentMethod || "N/A", 290, position, { width: columnWidth });
+          doc.text(order.orderStatus || "N/A", 370, position, { width: columnWidth });
+          doc.text(`₹${(order.discount || 0).toFixed(2)}`, 450, position, { width: columnWidth, align: "right" });
+          doc.text(`₹${(order.totalPrice || 0).toFixed(2)}`, 530, position, { width: columnWidth, align: "right" });
+          position += 20;
         });
-        position += 20;
       });
 
-      doc.moveTo(50, position).lineTo(590, position).stroke();
+      doc.moveTo(50, position).lineTo(610, position).stroke();
       doc.moveDown(2);
 
+      // Top Products
       doc.fontSize(14).font("Helvetica-Bold").text("Top Products", 50, doc.y, { underline: true });
       doc.moveDown(0.5);
       doc.fontSize(12).font("Helvetica");
       report.topProducts.forEach((product, index) => {
+        if (doc.y > doc.page.height - 50) doc.addPage();
         doc.text(`${index + 1}. ${product.productName} - ${product.totalSold} units, ₹${product.totalRevenue.toFixed(2)}`, 70);
       });
 
       doc.moveDown(2);
+      // Top Categories
       doc.fontSize(14).font("Helvetica-Bold").text("Top Categories", 50, doc.y, { underline: true });
       doc.moveDown(0.5);
       doc.fontSize(12).font("Helvetica");
       report.topCategories.forEach((category, index) => {
+        if (doc.y > doc.page.height - 50) doc.addPage();
         doc.text(`${index + 1}. ${category.categoryName} - ${category.totalSold} units, ₹${category.totalRevenue.toFixed(2)}`, 70);
       });
 
@@ -255,6 +428,7 @@ exports.downloadSalesReport = async (req, res) => {
 
       const salesSheet = workbook.addWorksheet("Sales Report");
 
+      // Summary
       salesSheet.addRow(["Sales Report"]);
       salesSheet.addRow(["Period", `${report.filters.startDate} to ${report.filters.endDate}`]);
       salesSheet.addRow([]);
@@ -265,8 +439,9 @@ exports.downloadSalesReport = async (req, res) => {
       salesSheet.addRow(["Net Sales", `₹${report.summary.netSales.toFixed(2)}`]);
       salesSheet.addRow([]);
 
+      // Sales Trend
       salesSheet.addRow(["Sales Trend"]);
-      salesSheet.addRow(["Period", "Order ID", "Product Name", "Payment Method", "Status", "Total Sales (₹)", "Discount (₹)"]);
+      salesSheet.addRow(["Period", "Order ID", "Product Name", "Payment Method", "Status", "Discount (₹)", "Total Sales (₹)"]);
       report.trend.forEach((t) => {
         t.orders.forEach((order) => {
           salesSheet.addRow([
@@ -275,13 +450,14 @@ exports.downloadSalesReport = async (req, res) => {
             order.productName || "Unknown",
             order.paymentMethod || "N/A",
             order.orderStatus || "N/A",
-            `₹${(order.totalPrice || 0).toFixed(2)}`,
             `₹${(order.discount || 0).toFixed(2)}`,
+            `₹${(order.totalPrice || 0).toFixed(2)}`,
           ]);
         });
       });
       salesSheet.addRow([]);
 
+      // Top Products
       salesSheet.addRow(["Top Products"]);
       salesSheet.addRow(["Product Name", "Units Sold", "Revenue (₹)"]);
       report.topProducts.forEach((product) => {
@@ -289,12 +465,14 @@ exports.downloadSalesReport = async (req, res) => {
       });
       salesSheet.addRow([]);
 
+      // Top Categories
       salesSheet.addRow(["Top Categories"]);
       salesSheet.addRow(["Category Name", "Units Sold", "Revenue (₹)"]);
       report.topCategories.forEach((category) => {
         salesSheet.addRow([category.categoryName, category.totalSold, `₹${category.totalRevenue.toFixed(2)}`]);
       });
 
+      // Styling
       salesSheet.eachRow((row, rowNumber) => {
         if ([1, 4, 10, 13, 16].includes(rowNumber)) {
           row.font = { bold: true, size: 14 };
@@ -307,12 +485,12 @@ exports.downloadSalesReport = async (req, res) => {
 
       salesSheet.columns = [
         { width: 15 },
+        { width: 20 },
         { width: 25 },
+        { width: 15 },
+        { width: 15 },
+        { width: 15 },
         { width: 20 },
-        { width: 15 },
-        { width: 15 },
-        { width: 20 },
-        { width: 15 },
       ];
 
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

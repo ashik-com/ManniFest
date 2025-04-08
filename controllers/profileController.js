@@ -80,7 +80,7 @@ exports.addAddress = async (req, res) => {
         });
 
         await newAddress.save();
-        const addresses = await Address.find({})
+        const addresses = await Address.find({ userId:userId.id })
         return res.json({ success: true, message: "Address added successfully!", addresses });
     } catch (error) {
         return res.status(500).json({ success: false, message: "Server error. Please try again." });
@@ -207,7 +207,7 @@ exports.updatepicture = async (req, res) => {
         res.json({ success: true, imageUrl });
     } catch (error) {
         console.error("Error uploading profile picture:", error);
-        res.status(500).json({ success: false, message: "Something went wrong" });
+        res.status(500).json({ success: false, message: "Something " });
     }
 };
 
@@ -522,7 +522,7 @@ exports.cancelOrderItem = async (req, res) => {
         let refundAmount = 0;
         if (['WALLET', 'RAZORPAY'].includes(order.paymentMethod) && order.paymentStatus === 'Paid') {
             if (order.items.length === 1) {
-                // Refund full amount if only one item
+                
                 refundAmount = order.totalPrice;
             } else if (order.items.length > 1) {
                 // Check coupon conditions

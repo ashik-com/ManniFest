@@ -1,12 +1,12 @@
 <div class="row g-3">
-    <!-- Profile Card -->
+    <!-- Profile Card (unchanged) -->
     <div class="col-md-6 col-12">
         <div class="profile-card">
             <div class="profile-avatar">
                 <% if (user?.profileImage) { %>
                     <img src="<%= user.profileImage%>" alt="Profile Picture" class="profile-img">
                 <% } else { %>
-                    <%= user?.name?.charAt(0)?.toUpperCase() %> <!-- Show initial if no image -->
+                    <%= user?.name?.charAt(0)?.toUpperCase() %>
                 <% } %>
             </div>
             <h3 class="mb-2">
@@ -16,81 +16,124 @@
                 <%= user?.email %>
             </p>
             <p class="text-muted mb-3">
-                Phone: <%= user?.phone ? user.phone : "N/A" %> 
+                Phone: <%= user?.phone ? user.phone : "N/A" %>
             </p>
-            <a href="/user/edit-profile" class="profile-edit-profile">EDIT PROFILE</a>
+           
+        </div>
+    </div>
+
+    <!-- Referral Code Card -->
+    <div class="col-md-6 col-12">
+        <div class="profile-membership-card">
+            <h3 class="mb-2">Your Referral Code</h3>
+            <p class="text-muted mb-3">Share with friends to earn rewards!</p>
+            
+            <!-- Referral Code Display -->
+            <div class="referral-code-display mb-3">
+                <span id="referralCode" class="referral-code">
+                    <%= user?.referralCode %>
+                </span>
+                <button class="btn btn-sm btn-outline-secondary copy-btn" 
+                        title="Copy to clipboard">
+                    <img src="https://img.icons8.com/ios-filled/20/000000/copy.png" alt="Copy">
+                </button>
+            </div>
+    
+            <!-- Share Options -->
+            <div class="share-options d-flex justify-content-center gap-3">
+                <button class="share-btn whatsapp" 
+                        title="Share via WhatsApp">
+                    <img src="https://img.icons8.com/color/30/000000/whatsapp.png" alt="WhatsApp">
+                </button>
+                <button class="share-btn twitter" 
+                        title="Share via Twitter">
+                    <img src="https://img.icons8.com/color/30/000000/twitter.png" alt="Twitter">
+                </button>
+                <button class="share-btn email" 
+                        title="Share via Email">
+                    <img src="https://img.icons8.com/ios-filled/30/000000/email.png" alt="Email">
+                </button>
+            </div>
         </div>
     </div>
     
+    <!-- JavaScript for sharing functionality -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const referralCode = "<%= user?.referralCode %>";
+            const shareMessage = `Join me using my referral code ${referralCode} and get started!`;
+    
+            // Copy Referral Code
+            const copyButton = document.querySelector(".copy-btn");
+            if (copyButton) {
+                copyButton.addEventListener("click", function () {
+                    navigator.clipboard.writeText(referralCode)
+                        .then(() => alert("Referral code copied to clipboard!"))
+                        .catch(err => console.error("Failed to copy:", err));
+                });
+            }
+    
+            // Share via WhatsApp
+            const whatsappButton = document.querySelector(".share-btn.whatsapp");
+            if (whatsappButton) {
+                whatsappButton.addEventListener("click", function () {
+                    const url = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+                    window.open(url, "_blank");
+                });
+            }
+    
+            // Share via Twitter
+            const twitterButton = document.querySelector(".share-btn.twitter");
+            if (twitterButton) {
+                twitterButton.addEventListener("click", function () {
+                    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}`;
+                    window.open(url, "_blank");
+                });
+            }
+    
+            // Share via Email
+            const emailButton = document.querySelector(".share-btn.email");
+            if (emailButton) {
+                emailButton.addEventListener("click", function () {
+                    const subject = "Join me with my referral code!";
+                    const body = shareMessage;
+                    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                });
+            }
+        });
+    </script>
 
-    <!-- Membership Card -->
-    <div class="col-md-6 col-12">
-        <div class="profile-membership-card">
-            <h3 class="mb-2">Premium Membership</h3>
-            <p class="text-muted mb-3">Upgrade to the premium experience now</p>
-            <div class="profile-feature-icons d-flex justify-content-center">
-                <img src="https://img.icons8.com/ios-filled/30/000000/delivery.png"
-                    class="profile-feature-icon" alt="Free Shipping">
-                <img src="https://img.icons8.com/ios-filled/30/000000/fast--v1.png"
-                    class="profile-feature-icon" alt="Early Access">
-                <img src="https://img.icons8.com/ios-filled/30/000000/gift.png"
-                    class="profile-feature-icon" alt="VIP Support">
-            </div>
-            <button class="profile-get-membership mt-3">GET MEMBERSHIP</button>
-        </div>
-    </div>
+<!-- Optional CSS -->
+<style>
+    .referral-code-display {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
 
-    <!-- Dashboard Cards -->
-    <div class="col-md-3 col-6">
-        <div class="profile-dashboard-card">
-            <img src="https://img.icons8.com/ios-filled/30/000000/shopping-bag.png" alt="Orders">
-            <h6 class="profile-card-title">My Orders</h6>
-            <p class="profile-card-text">
-                <%= user?.orders?.length %> Orders
-            </p>
-        </div>
-    </div>
+    .referral-code {
+        font-family: monospace;
+        font-size: 1.2rem;
+        padding: 5px 10px;
+        background: #f8f9fa;
+        border: 1px dashed #ccc;
+        border-radius: 4px;
+    }
 
-    <div class="col-md-3 col-6">
-        <div class="profile-dashboard-card">
-            <img src="https://img.icons8.com/ios-filled/30/000000/credit-card.png" alt="Payments">
-            <h6 class="profile-card-title">My Payments</h6>
-            <p class="profile-card-text">Manage Payments</p>
-        </div>
-    </div>
+    .share-btn {
+        background: none;
+        border: none;
+        padding: 5px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
 
-    <div class="col-md-3 col-6">
-        <div class="profile-dashboard-card">
-            <img src="https://img.icons8.com/ios-filled/30/000000/wallet.png" alt="Wallet">
-            <h6 class="profile-card-title">My Wallet</h6>
-            <p class="profile-card-text">$<%= user?.wallet_balance?.toFixed(2) %>
-            </p>
-        </div>
-    </div>
+    .share-btn:hover {
+        transform: scale(1.1);
+    }
 
-    <div class="col-md-3 col-6">
-        <div class="profile-dashboard-card">
-            <img src="https://img.icons8.com/ios-filled/30/000000/map-marker.png" alt="Addresses">
-            <h6 class="profile-card-title">My Addresses</h6>
-            <p class="profile-card-text">
-                <%= user?.addresses?.length %> Addresses
-            </p>
-        </div>
-    </div>
-
-    <div class="col-md-3 col-6">
-        <div class="profile-dashboard-card">
-            <img src="https://img.icons8.com/ios-filled/30/000000/user.png" alt="Profile">
-            <h6 class="profile-card-title">My Profile</h6>
-            <p class="profile-card-text">Edit Personal Info</p>
-        </div>
-    </div>
-
-    <div class="col-md-3 col-6">
-        <div class="profile-dashboard-card">
-            <img src="https://img.icons8.com/ios-filled/30/000000/help.png" alt="Help">
-            <h6 class="profile-card-title">Help & Support</h6>
-            <p class="profile-card-text">Reach Out To Us</p>
-        </div>
-    </div>
-</div>
+    .copy-btn {
+        padding: 5px 10px;
+    }
+</style>
