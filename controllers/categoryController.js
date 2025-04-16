@@ -9,7 +9,7 @@ const Offer = require("../models/offersSchema")
 exports.getCategorys = async (req, res) => {
   try {
       const page = parseInt(req.query.page) || 1;
-      const limit = 10; // Adjust as needed
+      const limit = 10; 
       const searchQuery = req.query.search || '';
       const skip = (page - 1) * limit;
 
@@ -23,23 +23,19 @@ exports.getCategorys = async (req, res) => {
           .skip(skip)
           .limit(limit)
           .lean();
-
-      // Fetch offers for each category
       const categoryIds = categories.map(c => c._id);
       const offers = await Offer.find({ type: 'category', categoryId: { $in: categoryIds } }).lean();
       const offerMap = {};
       offers.forEach(offer => {
           offerMap[offer.categoryId.toString()] = offer;
       });
-
-      // Combine categories with their offers
       const enrichedCategories = categories.map(category => ({
           ...category,
           offer: offerMap[category._id.toString()] || null,
       }));
 
       res.render('admin/categorys', {
-          categorys: enrichedCategories, // Match your variable name
+          categorys: enrichedCategories, 
           currentPage: page,
           totalPages: Math.ceil(totalCategories / limit),
           searchQuery: searchQuery,
@@ -93,8 +89,7 @@ exports.getCategorys = async (req, res) => {
       if (existingCategory) {
         return res.status(400).json({ message: "Category name already exists!" });
       }
-  
-      // Update the category
+
       const updatedCategory = await Category.findByIdAndUpdate(
         categoryId,
         { name, description },
@@ -108,9 +103,6 @@ exports.getCategorys = async (req, res) => {
     }
   };
   
-
-
-
   exports.getAddCategorys =(req,res)=>{
     res.render('admin/addcategorys')
   }
@@ -121,22 +113,16 @@ exports.getCategorys = async (req, res) => {
       const { name, description } = req.body;
       const categoryId = req.params.id;
       console.log(name)
-  
       if (!name) return res.status(400).json({ message: "Category name is required" });
-  
-      // Check if another category (excluding the current one) already exists with the same name
       const existingCategory = await Category.findOne({
         name: { $regex: `^${name}$`, $options: "i" },
-        _id: { $ne: categoryId }, // Exclude current category
+        _id: { $ne: categoryId }, 
       });
-  
       if (existingCategory) {
         return res.status(400).json({ message: "Category already exists!" });
       }
-  
       const newCategory = new Category({ name, description });
       await newCategory.save();
-  
       res.json({ success: true, message: "Category updated successfully" });
     } catch (error) {
       console.error("Error editing category:", error);

@@ -32,7 +32,7 @@ const razorpayInstance = new Razorpay({
         { type: "category", categoryId: (await Product.findById(productId)).category }
       ]
     }).lean();
-    console.log("Offers found:", offers);
+ 
   
     const productOffer = offers.find(offer => offer.type === "product");
     const categoryOffer = offers.find(offer => offer.type === "category");
@@ -41,7 +41,7 @@ const razorpayInstance = new Razorpay({
     let discountedPrice = variantPrice;
     let hasOffer = false;
     let discountPercentage = null;
-    console.log("orrrrrrrrrrrrrrrringin",originalPrice)
+  
   
     const calcDiscount = (price, offer) => {
       if (offer.discountType === "percentage") {
@@ -80,18 +80,13 @@ const razorpayInstance = new Razorpay({
   exports.getCheckout = async (req, res) => {
     try {
       console.log("Entering getCheckout");
-  
-      // Validate session
       if (!req.session || !req.session.email) {
         req.flash("error", "Please log in to proceed.");
         console.log("Redirecting to login - no session");
         return res.status(401).redirect("/user/login");
       }
-  
       const name = req.session.name || "";
       console.log("Session name:", name);
-  
-      // Find and validate user
       const user = await User.findOne({ email: req.session.email });
       if (!user) {
         req.flash("error", "User not found. Please log in again.");
@@ -100,12 +95,10 @@ const razorpayInstance = new Razorpay({
       }
       console.log("User found:", user._id);
       const userId = user._id;
-  
-      // Get addresses
+
       const addresses = await Address.find({ userId });
       console.log("Addresses found:", addresses.length);
-  
-      // Get and validate cart
+
       const cart = await Cart.findOne({ userId })
         .populate({
           path: "items.productId",
@@ -130,19 +123,14 @@ const razorpayInstance = new Razorpay({
         console.log("Redirecting to cart - empty cart");
         return res.status(400).redirect("/user/cart");
       }
-      console.log("Cart found:", cart.items.length);
-  
-      // Validate cart items
+    
       const validationErrors = [];
       
       for (let item of cart.items) {
-        // Validate product and variant existence
         if (!item.productId || !item.variantId) {
           validationErrors.push("Invalid product or variant in cart");
           continue;
         }
-  
-        // Calculate prices
         const { originalPrice, discountedPrice, hasOffer, discountPercentage } = await calculatePriceWithOffers(
           item.productId._id,
           item.variantId.price
@@ -152,17 +140,13 @@ const razorpayInstance = new Razorpay({
         item.price = discountedPrice;
         item.hasOffer = hasOffer;
         item.discountPercentage = discountPercentage;
-
-        console.log("this is item ",item)
   
-        // Validate stock
         if (item.variantId.stock < item.quantity) {
           validationErrors.push(
             `Insufficient stock for ${item.productId.name} (${item.variantId.color}, ${item.variantId.size}): Available: ${item.variantId.stock}, Requested: ${item.quantity}`
           );
         }
   
-        // Validate maximum quantity (assuming maxQuantity in variant)
         const maxQuantity = item.variantId.maxQuantity || 5;
         if (item.quantity > maxQuantity) {
           validationErrors.push(
@@ -170,14 +154,13 @@ const razorpayInstance = new Razorpay({
           );
         }
   
-        // Validate quantity is positive
+        
         if (item.quantity <= 0) {
           validationErrors.push(
             `${item.productId.name} has invalid quantity (${item.quantity})`
           );
         }
-  
-        // Validate price
+
         if (item.price < 0) {
           validationErrors.push(
             `${item.productId.name} has invalid price (${item.price})`
@@ -191,7 +174,7 @@ const razorpayInstance = new Razorpay({
         return res.status(400).redirect("/user/cart");
       }
   
-      // Calculate totals
+    
       const subtotal = cart.items.reduce((sum, item) => {
         const itemTotal = item.price * item.quantity;
         return sum + (isNaN(itemTotal) ? 0 : itemTotal);
@@ -203,22 +186,17 @@ const razorpayInstance = new Razorpay({
         return res.status(400).redirect("/user/cart");
       }
   
-      const shippingCost = 0; // Consider making this configurable
+      const shippingCost = 0; 
       const totalAmount = subtotal + shippingCost;
       console.log("Subtotal:", subtotal, "Total:", totalAmount);
-  
-      // Get wallet
       const wallet = await Wallet.findOne({ userId });
       console.log("Wallet found:", wallet ? wallet.balance : "No wallet");
-  
-      // Validate wallet if exists
       if (wallet && wallet.balance < 0) {
         req.flash("error", "Invalid wallet balance");
         console.log("Redirecting to cart - invalid wallet");
         return res.status(400).redirect("/user/cart");
       }
-  
-      // Get valid coupons
+
       const coupons = await Coupon.find({ 
         isActive: true, 
         expiryDate: { $gt: new Date() },

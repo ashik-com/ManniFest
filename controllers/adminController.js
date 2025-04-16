@@ -122,7 +122,6 @@ exports.getOrders = async (req, res) => {
         hasActiveItems: activeItems.length > 0,
       };
     });
-    console.log("orders", transformedOrders)
     res.render("admin/orders", { orders: transformedOrders, searchQuery });
   } catch (error) {
     console.error("Error fetching orders:", error);
@@ -138,8 +137,6 @@ exports.orderDetails = async (req, res) => {
       return res.status(404).send('Order not found');
     }
     const itemId = req.params.itemId;
-    console.log(order)
-    console.log(itemId)
     res.render('admin/order-details', { order, itemId });
   } catch (error) {
     console.error(error);
@@ -206,7 +203,6 @@ exports.approveReturn = async (req, res) => {
     if (!item || !item.returnRequested || item.returned) {
       return res.status(400).json({ success: false, message: "Item not found, no return requested, or already returned" });
     }
-
     
     item.returned = true;
     item.returnedAt = new Date();
@@ -232,13 +228,9 @@ exports.approveReturn = async (req, res) => {
       couponMinAmount= minimumPurchase
 
     }
-    
     const itemSubtotal = item.price * item.quantity;
     let refundAmount = 0;
-
     const filteredItems = order.items.filter(item => !item.returned && !item.cancelled);
-    console.log(filteredItems);
-
     if(filteredItems.length>=1){
       order.totalPrice - itemSubtotal > couponMinAmount ? refundAmount=itemSubtotal : refundAmount = itemSubtotal - order.couponDiscountAmount
     }else{
