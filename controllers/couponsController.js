@@ -57,7 +57,7 @@ exports.getCoupon =async (req, res) => {
 
   exports.postAddCoupon = async (req, res) => {
     try {
-        console.log("kk",req.body);
+       
         const {
             code,
             discountType,

@@ -17,26 +17,19 @@
           <div class="col-lg-6 col-md-6">
               <div class="login_part_form">
                   <div class="login_part_form_iner">
-                      <h3>Hello,Welcome ! <br>
-                          Please Enter your Email here</h3>
+                      <h3>Hello, Welcome! <br>
+                          Please Enter your OTP here</h3>
                       <form class="row contact_form" novalidate="novalidate">
                           <div class="col-md-12 form-group p_star">
-                              <input type="email" class="form-control" id="Email" name="email" value=""
-                                  placeholder="Enter your Email">
-                          </div>
-                          <div class="col-md-12 form-group p_star">
                               <input type="password" class="form-control" id="OTP" name="OTP" value=""
-                                  placeholder="Leave OTP here">
+                                  placeholder="Enter OTP">
                                   <small id="countdown" style="color: red;"></small>
                           </div>
                           <div class="col-md-12 form-group">
-                              <button type="button" value="submit" class="btn_3 get-otp">
-                                  Get OTP
-                              </button>
                               <button type="button" class="btn_3 resend-otp" style="display: none;">
                                   Resend OTP
                               </button>
-                              <button type="button" class="btn_3 verify-otp" style="display: none;">
+                              <button type="button" class="btn_3 verify-otp">
                                   Verify OTP
                               </button>
                           </div>
@@ -50,19 +43,60 @@
 
 <script>
     const newUser = JSON.parse(localStorage.getItem("newUser"));
-    const emailInput = document.querySelector("#Email");
     const otpInput = document.querySelector("#OTP");
-    let activeTimer = null; 
-
-   
-    if (newUser && newUser.email) {
-        emailInput.value = newUser.email;
-    }
+    let activeTimer = null;
+    const OTP_DURATION = 60;
 
     
+    window.addEventListener("load", () => {
+        const otpStartTime = localStorage.getItem("otpStartTime");
+        const countdownText = document.getElementById('countdown');
+        const resendOtpButton = document.querySelector('.resend-otp');
+        const verifyOtpButton = document.querySelector('.verify-otp');
+
+        if (otpStartTime) {
+            const elapsedTime = Math.floor((Date.now() - parseInt(otpStartTime)) / 1000);
+            let timeLeft = OTP_DURATION - elapsedTime;
+
+            if (timeLeft <= 0) {
+                countdownText.innerText = "OTP Expired";
+                resendOtpButton.style.display = "inline-block";
+                resendOtpButton.disabled = false;
+                verifyOtpButton.style.display = "none";
+            } else {
+                startOtpTimer(timeLeft);
+            }
+        } else {
+            
+            startOtpTimer(OTP_DURATION);
+            localStorage.setItem("otpStartTime", Date.now());
+        }
+    });
+
+    function startOtpTimer(timeLeft) {
+        const countdownText = document.getElementById('countdown');
+        const resendOtpButton = document.querySelector('.resend-otp');
+        const verifyOtpButton = document.querySelector('.verify-otp');
+
+        countdownText.innerText = `OTP valid for: ${Math.ceil(timeLeft)}s`;
+        activeTimer = setInterval(() => {
+            timeLeft--;
+            if (timeLeft <= 0) {
+                clearInterval(activeTimer);
+                activeTimer = null;
+                countdownText.innerText = "OTP Expired";
+                resendOtpButton.style.display = "inline-block";
+                resendOtpButton.disabled = false;
+                verifyOtpButton.style.display = "none";
+                localStorage.removeItem("otpStartTime");
+            } else {
+                countdownText.innerText = `OTP valid for: ${Math.ceil(timeLeft)}s`;
+            }
+        }, 1000);
+    }
+
     async function sendOtp(email, buttonToDisable) {
         const countdownText = document.getElementById('countdown');
-        const getOtpButton = document.querySelector('.get-otp');
         const resendOtpButton = document.querySelector('.resend-otp');
         const verifyOtpButton = document.querySelector('.verify-otp');
 
@@ -70,12 +104,11 @@
             Swal.fire({
                 icon: "warning",
                 title: "Email Required",
-                text: "Please enter your email before requesting an OTP!",
+                text: "No email found. Please sign up again.",
             });
             return false;
         }
 
-        // Clear any existing timer
         if (activeTimer) {
             clearInterval(activeTimer);
             activeTimer = null;
@@ -99,27 +132,12 @@
                     text: "Please check your email for the OTP.",
                 });
 
-                
-                getOtpButton.style.display = "none";
-                resendOtpButton.style.display = "none"; 
+                resendOtpButton.style.display = "none";
                 verifyOtpButton.style.display = "inline-block";
-                otpInput.value = ""; 
+                otpInput.value = "";
 
-                let timeLeft = 60;
-                countdownText.innerText = `OTP valid for: ${timeLeft}s`;
-                activeTimer = setInterval(() => {
-                    if (timeLeft <= 0) {
-                        clearInterval(activeTimer);
-                        activeTimer = null;
-                        countdownText.innerText = "OTP Expired";
-                        resendOtpButton.style.display = "inline-block";
-                        resendOtpButton.disabled = false;
-                        verifyOtpButton.style.display = "none";
-                    } else {
-                        countdownText.innerText = `OTP valid for: ${timeLeft}s`;
-                        timeLeft--;
-                    }
-                }, 1000);
+                localStorage.setItem("otpStartTime", Date.now());
+                startOtpTimer(OTP_DURATION);
                 return true;
             } else {
                 Swal.fire({
@@ -141,32 +159,23 @@
         }
     }
 
-    
-    document.querySelector('.get-otp').addEventListener("click", async (e) => {
-        e.preventDefault();
-        const email = emailInput.value;
-        await sendOtp(email, document.querySelector('.get-otp'));
-    });
-
-    
     document.querySelector('.resend-otp').addEventListener("click", async (e) => {
         e.preventDefault();
-        const email = emailInput.value;
+        const email = newUser?.email;
         await sendOtp(email, document.querySelector('.resend-otp'));
     });
 
-   
     document.querySelector(".verify-otp").addEventListener("click", async (e) => {
         e.preventDefault();
 
-        const email = emailInput.value;
+        const email = newUser?.email;
         const otp = otpInput.value;
 
         if (!email || !otp) {
             Swal.fire({
                 icon: "warning",
                 title: "Missing Information",
-                text: "Please enter your email and OTP to proceed.",
+                text: "Please enter your OTP to proceed.",
             });
             return;
         }
@@ -185,7 +194,8 @@
                     clearInterval(activeTimer);
                     activeTimer = null;
                 }
-                
+
+                localStorage.removeItem("otpStartTime"); 
                 Swal.fire({
                     icon: "success",
                     title: "OTP Verified!",

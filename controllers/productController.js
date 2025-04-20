@@ -6,6 +6,7 @@ const path = require('path')
 const Offer = require("../models/offersSchema")
 const cloudinary = require("../utils/cloudinary"); // Adjust the path to your Cloudinary config file
 const fs = require("fs").promises;
+const mongoose = require('mongoose')
 
 
 
@@ -87,11 +88,11 @@ exports.postAddProduct = async (req, res) => {
     let productImg = [];
     let variantImagesMap = {};
 
-    console.log("Received files:", images);
+    
 
     // Process and upload images to Cloudinary
     for (let item of images) {
-      console.log("Processing file:", item.fieldname);
+      
 
       // Upload to Cloudinary
       const result = await cloudinary.uploader.upload(item.path, {
@@ -116,7 +117,7 @@ exports.postAddProduct = async (req, res) => {
       }
     }
 
-    console.log("Mapped Variant Images:", variantImagesMap);
+ 
 
     // Validation for minimum images (if still required)
     if (variantImagesMap.length < 3) {
@@ -148,7 +149,7 @@ exports.postAddProduct = async (req, res) => {
 
       let variantImgPaths = variantImagesMap[i] || [];
 
-      console.log(`Variant ${i} images before saving:`, variantImgPaths);
+      
 
       const newVariant = new Variant({
         productId: savedProduct._id,
@@ -159,7 +160,7 @@ exports.postAddProduct = async (req, res) => {
         images: variantImgPaths, // Use Cloudinary URLs
       });
 
-      console.log("Saving Variant:", newVariant);
+      
 
       const savedVariant = await newVariant.save();
       variantIds.push(savedVariant._id);
@@ -192,7 +193,7 @@ exports.getEditProduct = async (req, res) => {
             res.status(404).send("Product not found")
         }
 
-
+        console.log("variants",variants)
         res.render('admin/editproduct', { product, categories, variants,productId })
     } catch (error) {
         console.log(error)
@@ -203,89 +204,194 @@ exports.getEditProduct = async (req, res) => {
 
 
 exports.updateEditProduct = async (req, res) => {
-    try {
-      console.log("Request Body:", req.body);
-      console.log("Request Files:", req.files);
-  
-      const { name, description, category, price, stock, variants, isListed, status, specifications } = req.body;
-      const productId = req.params.id;
-  
-      if (!productId || !name || !description || !category || !price) {
-        return res.status(400).json({ success: false, message: "Missing required fields" });
-      }
-  
-      let product = await Product.findById(productId);
-      if (!product) {
-        return res.status(404).json({ success: false, message: "Product not found" });
-      }
-  
-      product.name = name;
-      product.description = description;
-      product.category = category;
-      product.price = price;
-      product.stock = stock;
-      product.isListed = isListed === "true";
-      product.status = status;
-      product.specifications = specifications || {};
-  
-      await product.save();
-  
-    
-      if (variants && Array.isArray(variants)) {
-        for (let index = 0; index < variants.length; index++) {
-          const variant = variants[index];
-          const existingVariant = await Variant.findOne({
-            productId,
-            color: variant.color,
-            size: variant.size,
-          });
-  
-          let variantImages = existingVariant ? existingVariant.images : [];
-  
-         
-          const newImages = req.files.filter(file => file.fieldname === `variant_images_${index}[]`);
-          if (newImages.length > 0) {
-            variantImages.push(...newImages.map(file => file.filename));
+  try {
+    const { name, description, category, price, isListed, status, variants } = req.body;
+    const productId = req.params.id;
+
+    // Validate required fields
+    if (!productId || !name || !description || !category || !price) {
+      return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+    const basePrice = parseFloat(price);
+    if (isNaN(basePrice) || basePrice <= 0) {
+      return res.status(400).json({ success: false, message: "Base price must be positive" });
+    }
+
+    // Debug: Log req.files
+    console.log("Uploaded files:", req.files);
+
+    // Find product
+    let product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    // Update product fields
+    product.name = name;
+    product.description = description;
+    product.category = category;
+    product.baseprice = basePrice;
+    product.isListed = isListed === "true";
+    product.status = status;
+
+    // Update specifications
+    product.specifications = {
+      material: req.body["specifications[material]"] || product.specifications.material || "Not specified",
+      sleeveType: req.body["specifications[sleeveType]"] || product.specifications.sleeveType,
+      fitType: req.body["specifications[fitType]"] || product.specifications.fitType || "Regular",
+      pattern: req.body["specifications[pattern]"] || product.specifications.pattern || "Plain",
+    };
+
+    // Validate sleeveType
+    const validSleeveTypes = ["Full sleeve", "Half sleeve", "Sleeveless"];
+    if (!product.specifications.sleeveType || !validSleeveTypes.includes(product.specifications.sleeveType)) {
+      return res.status(400).json({ success: false, message: "Invalid or missing sleeveType. Must be one of: Full sleeve, Half sleeve, Sleeveless" });
+    }
+
+    // Debug: Log specifications
+    console.log("Updated Specifications:", product.specifications);
+
+    // Handle variants
+    if (variants) {
+      const variantArray = Array.isArray(variants) ? variants : Object.values(variants);
+      for (let index = 0; index < variantArray.length; index++) {
+        const variant = variantArray[index];
+        if (!variant.color || !variant.size || !variant.price || !variant.stock) {
+          return res.status(400).json({ success: false, message: `Missing fields for variant ${index + 1}` });
+        }
+        const variantPrice = parseFloat(variant.price);
+        const variantStock = parseInt(variant.stock);
+        if (variantPrice <= 0 || variantStock < 0) {
+          return res.status(400).json({ success: false, message: `Invalid price or stock for variant ${index + 1}` });
+        }
+
+        const existingVariant = variant.id
+          ? await Variant.findOne({ _id: variant.id, productId })
+          : await Variant.findOne({ productId, color: variant.color, size: variant.size });
+
+        let variantImages = existingVariant ? existingVariant.images : [];
+
+        // Handle new images
+        const newImages = req.files.filter(file => file.fieldname === `variant_images[${index}][]`);
+        if (newImages.length > 0) {
+          const validTypes = ["image/jpeg", "image/png"];
+          for (const file of newImages) {
+            if (!validTypes.includes(file.mimetype)) {
+              return res.status(400).json({ success: false, message: "Only JPEG/PNG images allowed" });
+            }
+            // Upload to Cloudinary
+            try {
+              const uploadOptions = {
+                folder: "products",
+                public_id: `${Date.now()}_${file.originalname.split(".")[0]}`,
+              };
+              let result;
+              if (file.path) {
+                // Disk storage: upload from file path
+                result = await cloudinary.uploader.upload(file.path, uploadOptions);
+                // Delete local file
+                await fs.unlink(file.path).catch(err => console.error("Error deleting local file:", err));
+              } else if (file.buffer) {
+                // Memory storage: upload from buffer
+                result = await new Promise((resolve, reject) => {
+                  const stream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+                    if (error) reject(error);
+                    else resolve(result);
+                  });
+                  stream.end(file.buffer);
+                });
+              } else {
+                throw new Error("File missing path or buffer");
+              }
+              variantImages.push(result.secure_url);
+              console.log("Uploaded image URL:", result.secure_url);
+            } catch (uploadError) {
+              console.error("Cloudinary upload error:", uploadError);
+              return res.status(500).json({ success: false, message: "Failed to upload image to Cloudinary" });
+            }
           }
-  
-         
-          const removedImages = req.body[`removed_images_${index}[]`] || [];
+        }
+
+        // Handle removed images
+        let removedImages = [];
+        if (req.body[`removed_images[${index}]`]) {
+          removedImages = JSON.parse(req.body[`removed_images[${index}]`]);
           if (Array.isArray(removedImages)) {
+            for (const image of removedImages) {
+              if (variantImages.includes(image)) {
+                try {
+                  // Extract public_id from Cloudinary URL
+                  const publicId = image.split("/").slice(-1)[0].split(".")[0];
+                  await cloudinary.uploader.destroy(`products/${publicId}`);
+                } catch (deleteError) {
+                  console.error("Cloudinary delete error:", deleteError);
+                }
+              }
+            }
             variantImages = variantImages.filter(img => !removedImages.includes(img));
-            removedImages.forEach((image) => {
-              const imagePath = path.join(__dirname, "../public/uploads/products", image);
-              if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
-            });
           }
-  
-          if (existingVariant) {
-          
-            existingVariant.price = variant.price;
-            existingVariant.stock = variant.stock;
-            
-            await existingVariant.save();
-          } else {
-            
-            await Variant.create({
-              productId,
-              color: variant.color,
-              size: variant.size,
-              price: variant.price,
-              stock: variant.stock,
-              // images: variantImages,
-            });
+        }
+
+        if (existingVariant) {
+          existingVariant.price = variantPrice;
+          existingVariant.stock = variantStock;
+          existingVariant.images = variantImages;
+          await existingVariant.save();
+        } else {
+          const newVariant = await Variant.create({
+            productId,
+            color: variant.color.trim(),
+            size: variant.size.trim(),
+            price: variantPrice,
+            stock: variantStock,
+            images: variantImages,
+          });
+          product.variants.push(newVariant._id);
+        }
+      }
+    }
+
+    // Handle removed variants
+    const removedVariants = req.body.removed_variants ? JSON.parse(req.body.removed_variants) : [];
+    if (removedVariants.length > 0) {
+      const validObjectIds = removedVariants.filter(id => mongoose.isValidObjectId(id));
+      if (validObjectIds.length === 0) {
+        return res.status(400).json({ success: false, message: "No valid variant IDs provided for deletion" });
+      }
+      // Delete variant images from Cloudinary
+      const variantsToDelete = await Variant.find({ _id: { $in: validObjectIds }, productId });
+      for (const variant of variantsToDelete) {
+        for (const image of variant.images) {
+          try {
+            const publicId = image.split("/").slice(-1)[0].split(".")[0];
+            await cloudinary.uploader.destroy(`products/${publicId}`);
+          } catch (deleteError) {
+            console.error("Cloudinary delete error:", deleteError);
           }
         }
       }
-  
-      res.json({ success: true, message: "Product updated successfully!" });
-    } catch (error) {
-      console.error("Update Error:", error);
-      res.status(500).json({ success: false, message: "Server error" });
+      await Variant.deleteMany({ productId, _id: { $in: validObjectIds } });
+      product.variants = product.variants.filter(variantId => !validObjectIds.includes(variantId.toString()));
     }
-  };
 
+    await product.save();
 
+    // Debug: Log saved product
+    const savedProduct = await Product.findById(productId).populate("variants");
+    console.log("Product after save:", savedProduct);
+
+    res.json({ success: true, message: "Product updated successfully!" });
+  } catch (error) {
+    console.error("Update Error:", error);
+    if (error.name === "CastError") {
+      return res.status(400).json({ success: false, message: "Invalid variant ID format" });
+    }
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ success: false, message: `Validation error: ${error.message}` });
+    }
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
 
     exports.deleteProduct = async (req, res) => {
         try {

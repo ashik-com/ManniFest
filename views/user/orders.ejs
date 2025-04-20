@@ -80,7 +80,7 @@
                                             <% } %>
                                         </td>
                                         <td><%= new Date(order.placedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) %></td>
-                                        <td class="fw-medium">$<%= order.totalPrice.toFixed(2) %></td>
+                                        <td class="fw-medium">₹<%= order.totalPrice.toFixed(2) %></td>
                                         <td>
                                             <span class="badge status-badge <%= order.orderStatus.toLowerCase() %>">
                                                 <%= order.orderStatus %>

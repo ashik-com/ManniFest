@@ -204,7 +204,7 @@ exports.getBalance = async (req,res)=>{
 
         const user = await User.findOne({email:req.session.email})
         const wallet = await Wallet.findOne({userId:user._id})
-        console.log
+        
 
         res.json({
             success:true,
@@ -222,7 +222,7 @@ exports.getBalance = async (req,res)=>{
 
 // Define calculatePriceWithOffers locally
 const calculatePriceWithOffers = async (productId, variantPrice) => {
-  console.log("Calculating price for product:", productId);
+  
   const now = new Date();
   const offers = await Offer.find({
     isActive: true,
@@ -233,7 +233,7 @@ const calculatePriceWithOffers = async (productId, variantPrice) => {
       { type: "category", categoryId: (await Product.findById(productId)).category }
     ]
   }).lean();
-  console.log("Offers found:", offers);
+  
 
   const productOffer = offers.find(offer => offer.type === "product");
   const categoryOffer = offers.find(offer => offer.type === "category");
@@ -289,7 +289,7 @@ exports.payWithWallet = async (req, res) => {
     if (!req.body || Object.keys(req.body).length === 0) {
       return res.status(400).json({ success: false, message: "Request body is required" });
     }
-    console.log("Wallet checkout details:", req.body);
+    
 
     // Session validation
     if (!req.session || !req.session.email) {
@@ -302,7 +302,7 @@ exports.payWithWallet = async (req, res) => {
       return res.status(401).json({ success: false, message: "User not found. Please log in again." });
     }
     const userId = user._id;
-    console.log("User ID:", userId);
+    
 
     // Cart validation
     const cart = await Cart.findOne({ userId })
@@ -319,7 +319,7 @@ exports.payWithWallet = async (req, res) => {
     if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
       return res.status(400).json({ success: false, message: "Your cart is empty" });
     }
-    console.log("Cart:", cart.items.length);
+    
 
     // Address validation
     const address = await Address.findOne({ _id: addressId, userId });
@@ -334,7 +334,7 @@ exports.payWithWallet = async (req, res) => {
         message: `Missing required address fields: ${missingFields.join(', ')}`,
       });
     }
-    console.log("Address:", address._id);
+  
 
     // Shipping method validation
     const validShippingMethods = ["standard", "express"];

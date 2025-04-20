@@ -28,7 +28,6 @@ exports.getLoginPage = (req, res) => {
 exports.postLogin = async (req, res) => {
 
   const { email, password } = req.body;
-  console.log(email)
 
   const existingUser = await User.findOne({ email });
 
@@ -195,7 +194,6 @@ exports.getVerification = (req, res) => {
 
 exports.sentOtp = async (req, res) => {
   const { email } = req.body;
-  console.log("otppppppppppppppppppppppppppppppp:",email)
 
   if (!email) {
     return res.status(400).json({ success: false, message: "Email is required" });
@@ -227,8 +225,7 @@ exports.sentOtp = async (req, res) => {
 }
 
 
-const { v4: uuidv4 } = require('uuid'); // Ensure this is imported
-
+const { v4: uuidv4 } = require('uuid'); 
 exports.verifyOtp = async (req, res) => {
   const { email, otp, newUser } = req.body;
 
@@ -245,7 +242,6 @@ exports.verifyOtp = async (req, res) => {
 
   // Check OTP existence and validity
   const storedOtp = otpStore[email];
-  console.log("otp testing here",storedOtp)
   if (!storedOtp) {
     return res.status(400).json({ success: false, message: "OTP expired or not found" });
   }
@@ -351,8 +347,6 @@ exports.getSignup = (req, res) => {
 exports.postSignup = async (req, res) => {
   try {
     const { name,email, password, confirmPassword,referredBy } = req.body;
-    
-    console.log(name)
 
     if (!name || name.length < 3) {
       return res.status(400).json({ success: false, message: "Name must be at least 3 characters!" });
@@ -400,9 +394,7 @@ exports.postSignup = async (req, res) => {
       referredBy: referredByUser ? referredByUser.referralCode : null,
       referralCode: `${name.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
     });
-    console.log(newUser)
-    
-
+  
     return res.status(200).json({ success: true,user:newUser, message: "Signup successful! Please log in." });
 
   } catch (error) {

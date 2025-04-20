@@ -187,42 +187,51 @@
 
         // 5. Submit to server with referralCode added
         try {
-            const payload = { name, email, password, confirmPassword };
-            if (referredBy) payload.referredBy = referredBy;
+    const payload = { name, email, password, confirmPassword };
+    if (referredBy) payload.referredBy = referredBy;
 
-            const response = await fetch("/user/signup", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
+    const response = await fetch("/user/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
 
-            const data = await response.json();
+    const data = await response.json();
 
-            if (data.success) {
-                localStorage.setItem("newUser", JSON.stringify(data.user));
-                Swal.fire({
-                    icon: "success",
-                    title: "Signup Successful!",
-                    // Updated message to reflect reward at signup
-                    text: `Please confirm the OTP. Your referral code: ${data.referralCode || "N/A"}. Share it to earn ₹50 when someone signs up!`,
-                }).then(() => {
-                    window.location.href = "/user/verification";
-                });
-            } else {
-                Swal.fire({
-                    icon: "error",
-                    title: "Signup Failed",
-                    text: data.message || "Something went wrong, please try again!",
-                });
-            }
-        } catch (error) {
-            console.error("Signup error:", error);
-            Swal.fire({
-                icon: "error",
-                title: "Connection Error",
-                text: "Unable to reach the server. Please check your connection and try again.",
-            });
-        }
+    if (data.success) {
+        localStorage.setItem("newUser", JSON.stringify(data.user));
+
+        // Step 1: Send OTP before redirecting to verification page
+        await fetch("/user/sent-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+        });
+
+        // Step 2: Show success and redirect
+        Swal.fire({
+            icon: "success",
+            title: "Signup Successful!",
+            text: `Please confirm the OTP. Your referral code: ${data.referralCode || "N/A"}. Share it to earn ₹50 when someone signs up!`,
+        }).then(() => {
+            window.location.href = "/user/verification";
+        });
+    } else {
+        Swal.fire({
+            icon: "error",
+            title: "Signup Failed",
+            text: data.message || "Something went wrong, please try again!",
+        });
+    }
+} catch (error) {
+    console.error("Signup error:", error);
+    Swal.fire({
+        icon: "error",
+        title: "Connection Error",
+        text: "Unable to reach the server. Please check your connection and try again.",
+    });
+}
+
     });
 </script>
 

@@ -62,8 +62,6 @@ exports.addAddress = async (req, res) => {
 
         const userId = await User.findOne({ email: req.session.email })
         const { fullName, mobileNumber, pinCode, city, state, addressLine1, landmark, addressType, isDefault, country } = req.body;
-        console.log("hello from add addresses")
-        console.log(fullName)
         // Save the new address
         const newAddress = new Address({
             userId: userId, // Assuming session-based authentication
@@ -112,7 +110,7 @@ exports.getSingleProfile = async (req, res) => {
     try {
         const name = req.session.name ? req.session.name : ""
         const user = await User.findOne({ email: req.session.email })
-        console.log("user from singe profile page", user)
+
         if (req.xhr) {
             return res.render("user/partials/myProfile", { name, user });
         }
@@ -170,7 +168,7 @@ exports.verifyemailotp = async (req, res) => {
 
     await User.findByIdAndUpdate(user._id, { email });
 
-    console.log("Email updated successfully!");
+   
 
 
     delete otpStorage[email];
@@ -184,8 +182,7 @@ exports.verifyemailotp = async (req, res) => {
 
 exports.updatepicture = async (req, res) => {
     try {
-        console.log("Session Email:", req.session.email);
-        console.log("Uploaded File:", req.file);
+       
 
         if (!req.file) {
             return res.status(400).json({ success: false, message: "No file uploaded" });
@@ -216,8 +213,7 @@ exports.changepassword = async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
         const user = await User.findOne({ email: req.session.email });
-        console.log("this is new password", newPassword)
-        console.log("user form change password", user)
+       
 
         if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
@@ -402,7 +398,7 @@ exports.cancelOrder = async (req, res) => {
                     if (!variant) {
                         throw new Error(`Variant not found for item: ${item.productName}`);
                     }
-                    console.log(`Restoring stock for Variant ID: ${item.variantId}, Quantity: ${item.quantity}, Current Stock: ${variant.stock}`);
+                   
                     await Variant.updateOne(
                         { _id: item.variantId },
                         { $inc: { stock: item.quantity } },
@@ -411,7 +407,7 @@ exports.cancelOrder = async (req, res) => {
                     item.cancelled = true;
                 }
             }
-            console.log("here is the order",order)
+          
 
             order.orderStatus = 'Cancelled';
             order.paymentStatus = 'Failed';
@@ -419,7 +415,7 @@ exports.cancelOrder = async (req, res) => {
             await order.save({ session });
 
             await session.commitTransaction();
-            console.log(`Order ${order._id} cancelled successfully`);
+            
             res.json({ success: true, message: "All products cancelled successfully" });
         } catch (error) {
             await session.abortTransaction();
@@ -488,11 +484,13 @@ exports.cancelOrderItem = async (req, res) => {
     try {
         const { orderId, itemIndex } = req.params;
         const userId = req.user._id;
-        console.log("User ID:", userId);
 
+        console.log("njn ivide undee : ", req.user);
         // Find the order
+
+        console.log("orderId :",orderId)
         const order = await Order.findOne({ _id: orderId, userId });
-        console.log("Full order:", order);
+       
         if (!order) {
             return res.status(404).json({ success: false, message: "Order not found" });
         }
@@ -507,7 +505,7 @@ exports.cancelOrderItem = async (req, res) => {
             return res.status(400).json({ success: false, message: "Item not found or already cancelled" });
         }
 
-        console.log("Cancelling item:", item);
+        
 
         // Calculate the item amount to be refunded
         const cancellingItemAmount = item.price * item.quantity;

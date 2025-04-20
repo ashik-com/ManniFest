@@ -42,7 +42,7 @@
                         <td>
                             <% if (product.variants && product.variants.length> 0) { %>
                                 <% product.variants.forEach(variant=> { %>
-                                    $<%= variant.price %> <br>
+                                    ₹ <%= variant.price %> <br>
                                         <% }) %>
                                             <% } else { %>
                                                 <span class="text-muted">No Variant</span>

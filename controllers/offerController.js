@@ -269,7 +269,7 @@ exports.updateProductOffer = async (req, res) => {
             endDate
         } = req.body;
 
-        console.log("discou",discountValue)
+       
         if (!discountType || !discountValue || !startDate || !endDate) {
             const product = await Product.findById(productId).lean();
             return res.render('admin/edit-product-offer', {

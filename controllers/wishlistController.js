@@ -70,7 +70,7 @@ exports.addtowishlist = async (req, res) => {
         select: "color size price stock images",
       });
 
-      console.log("this is wihslist",wishlist)
+      
       res.render("user/wishlist",{name,wishlist})
     } catch (error) {
       

@@ -21,7 +21,6 @@ const razorpayInstance = new Razorpay({
 
 
     const calculatePriceWithOffers = async (productId, variantPrice) => {
-    console.log("Calculating price for product:", productId);
     const now = new Date();
     const offers = await Offer.find({
       isActive: true,
@@ -68,9 +67,6 @@ const razorpayInstance = new Razorpay({
         ? categoryOffer.discountValue
         : ((variantPrice - discountedPrice) / variantPrice * 100).toFixed(0);
     }
-
-    console.log("this is original priece",originalPrice)
-    console.log("discount price", discountedPrice)
   
     return { originalPrice, discountedPrice, hasOffer, discountPercentage };
   };
@@ -79,25 +75,22 @@ const razorpayInstance = new Razorpay({
 
   exports.getCheckout = async (req, res) => {
     try {
-      console.log("Entering getCheckout");
+    
       if (!req.session || !req.session.email) {
         req.flash("error", "Please log in to proceed.");
-        console.log("Redirecting to login - no session");
+     
         return res.status(401).redirect("/user/login");
       }
       const name = req.session.name || "";
-      console.log("Session name:", name);
+      
       const user = await User.findOne({ email: req.session.email });
       if (!user) {
         req.flash("error", "User not found. Please log in again.");
-        console.log("Redirecting to login - no user");
         return res.status(404).redirect("/user/login");
       }
-      console.log("User found:", user._id);
       const userId = user._id;
 
       const addresses = await Address.find({ userId });
-      console.log("Addresses found:", addresses.length);
 
       const cart = await Cart.findOne({ userId })
         .populate({
@@ -114,13 +107,11 @@ const razorpayInstance = new Razorpay({
   
       if (!cart) {
         req.flash("error", "Cart not found. Please add items to proceed.");
-        console.log("Redirecting to cart - no cart");
         return res.status(404).redirect("/user/cart");
       }
   
       if (cart.items.length === 0) {
         req.flash("error", "Your cart is empty. Add items before checking out.");
-        console.log("Redirecting to cart - empty cart");
         return res.status(400).redirect("/user/cart");
       }
     
@@ -170,7 +161,6 @@ const razorpayInstance = new Razorpay({
   
       if (validationErrors.length > 0) {
         req.flash("error", validationErrors.join(". "));
-        console.log("Redirecting to cart - validation errors:", validationErrors);
         return res.status(400).redirect("/user/cart");
       }
   
@@ -182,18 +172,17 @@ const razorpayInstance = new Razorpay({
   
       if (isNaN(subtotal) || subtotal < 0) {
         req.flash("error", "Invalid cart total calculation");
-        console.log("Redirecting to cart - invalid subtotal");
         return res.status(400).redirect("/user/cart");
       }
   
       const shippingCost = 0; 
       const totalAmount = subtotal + shippingCost;
-      console.log("Subtotal:", subtotal, "Total:", totalAmount);
+      
       const wallet = await Wallet.findOne({ userId });
-      console.log("Wallet found:", wallet ? wallet.balance : "No wallet");
+      
       if (wallet && wallet.balance < 0) {
         req.flash("error", "Invalid wallet balance");
-        console.log("Redirecting to cart - invalid wallet");
+        
         return res.status(400).redirect("/user/cart");
       }
 
@@ -203,11 +192,7 @@ const razorpayInstance = new Razorpay({
         minimumPurchase: { $lte: subtotal },
         usedBy: { $ne: userId } 
       });
-      console.log("Coupons found:", coupons.length);
-
-      
-      console.log("here is cart",cart)
-      console.log("Rendering checkout page");
+    
       return res.status(200).render("user/checkout", {
         name,
         user,
@@ -244,12 +229,10 @@ const razorpayInstance = new Razorpay({
         shippingMethod,
       } = req.body;
         
-        console.log("gross price",grossPrice)
-        console.log("discount amount",discountAmount)
       if (!req.body || Object.keys(req.body).length === 0) {
         return res.status(400).json({ success: false, message: "Request body is required" });
       }
-      console.log("Checkout details:", req.body);
+
   
       
       if (!req.session || !req.session.email) {
@@ -262,7 +245,7 @@ const razorpayInstance = new Razorpay({
         return res.status(401).json({ success: false, message: "User not found. Please log in again." });
       }
       const userId = user._id;
-      console.log("User ID:", userId);
+     
   
       
       const cart = await Cart.findOne({ userId })
@@ -279,7 +262,7 @@ const razorpayInstance = new Razorpay({
       if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
         return res.status(400).json({ success: false, message: "Your cart is empty" });
       }
-      console.log("Cart:", cart.items.length);
+     
   
       
       const address = await Address.findOne({ _id: addressId, userId });
@@ -294,7 +277,7 @@ const razorpayInstance = new Razorpay({
           message: `Missing required address fields: ${missingFields.join(', ')}`,
         });
       }
-      console.log("Address:", address._id);
+     
   
      
       const formattedPaymentMethod = paymentMethod?.toUpperCase();
@@ -305,7 +288,7 @@ const razorpayInstance = new Razorpay({
           message: `Invalid payment method. Must be one of: ${validPaymentMethods.join(', ')}`,
         });
       }
-      console.log("Payment method:", formattedPaymentMethod);
+      
   
      
       const validShippingMethods = ["standard", "express"];
@@ -365,7 +348,7 @@ const razorpayInstance = new Razorpay({
           const priceWithOffer = await calculatePriceWithOffers(cartItem.productId._id, item.price);
           calculatedGrossPrice += priceWithOffer.originalPrice * item.quantity;
 
-          console.log("priceWithOffer.originalPrice",priceWithOffer.originalPrice)
+         
   
           return {
             productId: cartItem.productId._id,
@@ -547,7 +530,7 @@ exports.createRazorpayOrder = async (req, res) => {
       shippingMethod,
     } = req.body;
     const currency = "INR";
-    console.log("Razorpay items", req.body);
+  
 
     
     if (!req.session?.email) {
