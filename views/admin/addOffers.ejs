@@ -175,11 +175,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         showConfirmButton: false,
                         timer: 1500,
                     }).then(() => {
-                        window.location.href = '/admin/categories';
+                        window.location.href = '/admin/categorys';
                     });
                 } else {
                     alert('The category offer has been successfully added.');
-                    window.location.href = '/admin/categories';
+                    window.location.href = '/admin/categorys';
                 }
             } else {
                 showError('Error', result.message || 'Failed to add offer');
