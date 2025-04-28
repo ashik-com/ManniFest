@@ -483,7 +483,7 @@ exports.returnRequest = async (req, res) => {
 exports.cancelOrderItem = async (req, res) => {
     try {
         const { orderId, itemIndex } = req.params;
-        const userId = req.user._id;
+        const userId = await User.findOne({email:req.session.email})
 
         console.log("njn ivide undee : ", req.user);
         // Find the order
@@ -859,5 +859,33 @@ exports.downloadInvoice = async (req, res) => {
     } catch (error) {
         console.error("Error generating invoice:", error);
         res.status(500).json({ success: false, message: "Failed to generate invoice" });
+    }
+};
+
+exports.orderFailure= async (req, res) => {
+    const { orderId, error } = req.query;
+    let errorMessage = decodeURIComponent(error) || 'Unknown error occurred';
+
+    try {
+        if (orderId) {
+            const order = await Order.findById(orderId);
+            if (order) {
+                errorMessage = order.failureReason || errorMessage;
+            } else {
+                errorMessage = 'Order not found';
+            }
+        }
+        res.render('user/order-failure', { 
+            name: req.user?.name || 'Guest', 
+            orderId, 
+            error: errorMessage 
+        });
+    } catch (err) {
+        console.error('Error rendering failure page:', err);
+        res.render('user/order-failure', { 
+            name: req.user?.name || 'Guest', 
+            orderId, 
+            error: 'An unexpected error occurred' 
+        });
     }
 };

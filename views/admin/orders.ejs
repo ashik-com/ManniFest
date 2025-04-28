@@ -1,8 +1,43 @@
 <%- include('../admin/partials/header') %>
+<style>
+    .loading-spinner {
+        display: none;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 10px;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .search-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+</style>
+
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>Order Management</h2>
-        <input style="width: 400px;" type="text" id="searchOrder" class="form-control" placeholder="Search orders...">
+        <div class="d-flex align-items-center gap-3">
+            
+            <div class="search-container">
+                <input 
+                    style="width: 400px;" 
+                    type="text" 
+                    id="searchOrder" 
+                    class="form-control" 
+                    placeholder="Search orders..." 
+                    value="<%= searchQuery || '' %>"
+                >
+                <div id="loadingSpinner" class="loading-spinner"></div>
+            </div>
+        </div>
     </div>
     
     <table class="table table-bordered">
@@ -60,18 +95,49 @@
             <% }) %>
         </tbody>
     </table>
+    <div class="pagination">
+        <% if (currentPage > 1) { %>
+            <a href="/admin/orders?page=<%= currentPage - 1 %>&search=<%= encodeURIComponent(searchQuery) %>">Previous</a>
+        <% } %>
+    
+        <% for (let i = 1; i <= totalPages; i++) { %>
+            <a href="/admin/orders?page=<%= i %>&search=<%= encodeURIComponent(searchQuery) %>" class="<%= i === currentPage ? 'active' : '' %>">
+                <%= i %>
+            </a>
+        <% } %>
+    
+        <% if (currentPage < totalPages) { %>
+            <a href="/admin/orders?page=<%= currentPage + 1 %>&search=<%= encodeURIComponent(searchQuery) %>">Next</a>
+        <% } %>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        // Search functionality remains unchanged
-        document.getElementById("searchOrder").addEventListener("input", debounce(function () {
-            const query = this.value.trim();
-            window.location.href = `/admin/orders?search=${query}`;
-        }, 500));
+        const searchInput = document.getElementById("searchOrder");
+        const loadingSpinner = document.getElementById("loadingSpinner");
+        let isSearching = false;
 
-        // View order details remains unchanged
+        // Search functionality with loading animation
+        searchInput.addEventListener("input", debounce(function () {
+            if (isSearching) return;
+            
+            const query = this.value.trim();
+            isSearching = true;
+            loadingSpinner.style.display = 'block';
+            
+            // Update URL with search query
+            window.location.href = `/admin/orders?search=${encodeURIComponent(query)}`;
+        }, 800));
+
+        // Handle page load to restore search query
+        window.addEventListener('load', () => {
+            loadingSpinner.style.display = 'none';
+            isSearching = false;
+        });
+
+        // View order details
         document.querySelectorAll(".view-order").forEach(button => {
             button.addEventListener("click", function () {
                 const orderId = this.getAttribute("data-order-id");
@@ -97,11 +163,14 @@
 
                 if (result.isConfirmed) {
                     try {
+                        loadingSpinner.style.display = 'block';
                         const response = await fetch(`/admin/approve-return-item/${orderId}/${itemIndex}`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" }
                         });
                         const result = await response.json();
+                        loadingSpinner.style.display = 'none';
+
                         if (result.success) {
                             Swal.fire({
                                 icon: 'success',
@@ -118,6 +187,7 @@
                             });
                         }
                     } catch (error) {
+                        loadingSpinner.style.display = 'none';
                         Swal.fire({
                             icon: 'error',
                             title: 'Error!',
@@ -146,11 +216,14 @@
 
                 if (result.isConfirmed) {
                     try {
+                        loadingSpinner.style.display = 'block';
                         const response = await fetch(`/admin/reject-return-item/${orderId}/${itemIndex}`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" }
                         });
                         const result = await response.json();
+                        loadingSpinner.style.display = 'none';
+
                         if (result.success) {
                             Swal.fire({
                                 icon: 'success',
@@ -167,6 +240,7 @@
                             });
                         }
                     } catch (error) {
+                        loadingSpinner.style.display = 'none';
                         Swal.fire({
                             icon: 'error',
                             title: 'Error!',

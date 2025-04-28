@@ -127,7 +127,8 @@ router.route("/editproductoffer/:productId")
     .patch(offerController.updateProductOffer)
     .post(offerController.deleteProductOffer)
 
-// LOGOUT ROUTES
+router.route('/delete-offer/:offerId')
+    .post(offerController.deleteCategoryOffer)
 router.route('/logout')
     .post(adminController.logout)
 

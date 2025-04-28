@@ -47,7 +47,7 @@
               </div>
               <div class="mb-3">
                 <label for="price" class="form-label">Base Price</label>
-                <input type="number" class="form-control" id="price" name="price" value="<%= product.baseprice %>" min="0" step="0.01" required>
+                <input type="number" class="form-control" id="price" name="price" value="<%= product.baseprice %>"required>
               </div>
               
               <!-- Variants Section -->
@@ -67,15 +67,15 @@
                         <option value="XL" <%= variant.size === "XL" ? "selected" : "" %>>XL</option>
                       </select>
                       <label>Price:</label>
-                      <input type="number" class="form-control" name="variants[<%= index %>][price]" value="<%= variant.price %>" min="0" step="0.01" required>
+                      <input type="number" class="form-control" name="variants[<%= index %>][price]" value="<%= variant.price %>"  required>
                       <label>Stock:</label>
-                      <input type="number" class="form-control" name="variants[<%= index %>][stock]" value="<%= variant.stock %>" min="0" required>
-                      <label>Variant Images:</label>
+                      <input type="number" class="form-control" name="variants[<%= index %>][stock]" value="<%= variant.stock %>"  required>
+                      <label>Variant Images (at least 3 required):</label>
                       <input type="file" class="form-control variantImages" data-index="<%= index %>" multiple accept="image/jpeg,image/png">
                       <div id="variantImagesPreview_<%= index %>" class="d-flex flex-wrap">
                         <% variant.images.forEach(image => { %>
                           <div class="image-preview">
-                            <img src="<%=image%>" style="max-width: 100px;" class="m-2">
+                            <img src="<%= image %>" style="max-width: 100px;" class="m-2">
                             <button type="button" class="btn btn-danger btn-sm remove-image" data-index="<%= index %>" data-image="<%= image %>">❌</button>
                           </div>
                         <% }) %>
@@ -112,292 +112,425 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      const variantContainer = document.getElementById("variantContainer");
-      const addVariantButton = document.getElementById("addVariant");
-      const cropperModal = document.getElementById("cropperModal");
-      const cropperImage = document.getElementById("cropperImage");
-      const cropImageBtn = document.getElementById("cropImage");
-      const cancelCropBtn = document.getElementById("cancelCrop");
-      const skipCropBtn = document.getElementById("skipCrop");
-      const addProductForm = document.getElementById("editProductForm");
-      const editBtn = document.getElementById("addProductButton");
-      const productId = editBtn.getAttribute("data-id");
+  const variantContainer = document.getElementById("variantContainer");
+  const addVariantButton = document.getElementById("addVariant");
+  const cropperModal = document.getElementById("cropperModal");
+  const cropperImage = document.getElementById("cropperImage");
+  const cropImageBtn = document.getElementById("cropImage");
+  const cancelCropBtn = document.getElementById("cancelCrop");
+  const skipCropBtn = document.getElementById("skipCrop");
+  const addProductForm = document.getElementById("editProductForm");
+  const editBtn = document.getElementById("addProductButton");
+  const productId = editBtn.getAttribute("data-id");
 
-      let cropper;
-      let croppingTarget = null;
-      let croppedVariantImages = {};
-      let removedImages = {};
-      let removedVariants = [];
-      let currentFile = null;
+  let cropper;
+  let croppingTarget = null;
+  let croppedVariantImages = {};
+  let removedImages = {};
+  let removedVariants = [];
+  let currentFile = null;
 
-      // Add Variant
-      addVariantButton.addEventListener("click", addVariantGroup);
+  // Add Variant
+  addVariantButton.addEventListener("click", addVariantGroup);
 
-      // Handle Variant Image Uploads
-      variantContainer.addEventListener("change", (event) => {
-        if (event.target.classList.contains("variantImages")) {
-          const variantIndex = event.target.dataset.index;
-          handleFileInput(event, variantIndex);
+  // Handle Variant Image Uploads
+  variantContainer.addEventListener("change", (event) => {
+    if (event.target.classList.contains("variantImages")) {
+      const variantIndex = event.target.dataset.index;
+      handleFileInput(event, variantIndex);
+    }
+  });
+
+  // Remove Image
+  variantContainer.addEventListener("click", (event) => {
+    if (event.target.classList.contains("remove-image")) {
+      const variantIndex = event.target.dataset.index;
+      const imageName = event.target.dataset.image;
+      const imageId = event.target.dataset.imageId; // For new images
+      Swal.fire({
+        title: "Are you sure?",
+        text: "This will remove the image!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, remove it!",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const previewDiv = event.target.closest(".image-preview");
+          previewDiv.remove();
+          if (imageId) {
+            // Remove from croppedVariantImages if it's a new image
+            if (croppedVariantImages[variantIndex]) {
+              croppedVariantImages[variantIndex] = croppedVariantImages[variantIndex].filter(
+                (file) => file.name !== imageId
+              );
+              console.log(`Removed new image ${imageId} from croppedVariantImages[${variantIndex}]`);
+            }
+          } else {
+            // Add to removedImages for original images
+            if (!removedImages[variantIndex]) {
+              removedImages[variantIndex] = [];
+            }
+            removedImages[variantIndex].push(imageName);
+            console.log(`Added original image ${imageName} to removedImages[${variantIndex}]`);
+          }
+          Swal.fire("Removed!", "Image has been removed.", "success");
         }
       });
+    }
+  });
 
-      // Remove Image
-      variantContainer.addEventListener("click", (event) => {
-        if (event.target.classList.contains("remove-image")) {
-          const variantIndex = event.target.dataset.index;
-          const imageName = event.target.dataset.image;
+  // Remove Variant
+  variantContainer.addEventListener("click", (event) => {
+    if (event.target.classList.contains("remove-variant")) {
+      const variantIndex = event.target.dataset.index;
+      const variantId = event.target.dataset.variantId;
+      Swal.fire({
+        title: "Are you sure?",
+        text: "This will remove the variant!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, delete it!",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          document.querySelector(`.variant-group[data-index="${variantIndex}"]`).remove();
+          if (variantId) {
+            removedVariants.push(variantId);
+          }
+          reindexVariants();
+          Swal.fire("Deleted!", "Variant has been removed.", "success");
+        }
+      });
+    }
+  });
+
+  // Form Submission
+  addProductForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    Swal.fire({
+      title: "Confirm Submission",
+      text: "Are you sure you want to save changes?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, save it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        const productName = document.getElementById("name").value;
+        const description = document.getElementById("description").value;
+        const category = document.getElementById("category").value;
+        const price = document.getElementById("price").value;
+
+        // Validate required fields
+        if (!productName || !description || !category || !price) {
+          Swal.fire("Error", "Please fill all required fields!", "error");
+          return;
+        }
+
+        // Validate base price
+        if (isNaN(price) || parseFloat(price) <= 0) {
           Swal.fire({
-            title: "Are you sure?",
-            text: "This will remove the image!",
             icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: "Yes, remove it!",
-          }).then((result) => {
-            if (result.isConfirmed) {
-              event.target.closest(".image-preview").remove();
-              if (!removedImages[variantIndex]) {
-                removedImages[variantIndex] = [];
-              }
-              removedImages[variantIndex].push(imageName);
-              Swal.fire("Removed!", "Image has been removed.", "success");
-            }
+            title: "Invalid Base Price",
+            text: "Base price must be a positive number!",
           });
+          return;
         }
-      });
 
-      // Remove Variant
-      variantContainer.addEventListener("click", (event) => {
-        if (event.target.classList.contains("remove-variant")) {
-          const variantIndex = event.target.dataset.index;
-          const variantId = event.target.dataset.variantId;
-          Swal.fire({
-            title: "Are you sure?",
-            text: "This will remove the variant!",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: "Yes, delete it!",
-          }).then((result) => {
-            if (result.isConfirmed) {
-              document.querySelector(`.variant-group[data-index="${variantIndex}"]`).remove();
-              if (variantId) {
-                removedVariants.push(variantId);
-              }
-              Swal.fire("Deleted!", "Variant has been removed.", "success");
-            }
-          });
+        const variantGroups = document.querySelectorAll(".variant-group");
+        if (variantGroups.length === 0) {
+          Swal.fire("Error", "Please add at least one variant!", "error");
+          return;
         }
-      });
 
-      // Form Submission
-      addProductForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        Swal.fire({
-          title: "Confirm Submission",
-          text: "Are you sure you want to save changes?",
-          icon: "question",
-          showCancelButton: true,
-          confirmButtonText: "Yes, save it!",
-        }).then(async (result) => {
-          if (result.isConfirmed) {
-            const productName = document.getElementById("name").value;
-            const description = document.getElementById("description").value;
-            const category = document.getElementById("category").value;
-            const price = parseFloat(document.getElementById("price").value);
+        if (!validateVariants()) return;
 
-            if (!productName || !description || !category || isNaN(price) || price <= 0) {
-              Swal.fire("Error", "Please fill all required fields and ensure base price is positive!", "error");
-              return;
-            }
-
-            if (!validateVariants()) return;
-
-            const formData = new FormData(addProductForm);
-            const variantGroups = document.querySelectorAll(".variant-group");
-
-            variantGroups.forEach((variant, index) => {
-              if (removedImages[index]) {
-                formData.append(`removed_images[${index}]`, JSON.stringify(removedImages[index]));
-              }
-              if (croppedVariantImages[index]) {
-                croppedVariantImages[index].forEach((image, imgIndex) => {
-                  formData.append(`variant_images[${index}][]`, image, image.name);
-                });
-              }
+        const formData = new FormData(addProductForm);
+        variantGroups.forEach((variant, index) => {
+          if (removedImages[index]) {
+            formData.append(`removed_images[${index}]`, JSON.stringify(removedImages[index]));
+          }
+          if (croppedVariantImages[index]) {
+            croppedVariantImages[index].forEach((image, imgIndex) => {
+              formData.append(`variant_images[${index}][]`, image, image.name);
             });
-
-            if (removedVariants.length > 0) {
-              formData.append("removed_variants", JSON.stringify(removedVariants));
-            }
-
-            try {
-              const response = await fetch(`/admin/edit-Product/${productId}`, {
-                method: "POST",
-                body: formData,
-              });
-
-              if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-              }
-
-              const data = await response.json();
-              if (data.success) {
-                Swal.fire("Success!", "Product edited successfully.", "success").then(() => {
-                  window.location.href = "/admin/products";
-                });
-              } else {
-                Swal.fire("Error", data.message || "Something went wrong!", "error");
-              }
-            } catch (error) {
-              console.error("Error:", error);
-              Swal.fire("Error", `Failed to submit form: ${error.message}`, "error");
-            }
           }
         });
-      });
 
-      // Add Variant Group
-      function addVariantGroup() {
-        const index = document.querySelectorAll(".variant-group").length;
-        const variantHtml = `
-          <div class="variant-group border p-3 mt-2" data-index="${index}">
-            <label>Color:</label>
-            <input type="text" class="form-control" name="variants[${index}][color]" required>
-            <label>Size:</label>
-            <select class="form-select" name="variants[${index}][size]" required>
-              <option value="S">S</option>
-              <option value="M">M</option>
-              <option value="L">L</option>
-              <option value="XL">XL</option>
-            </select>
-            <label>Price:</label>
-            <input type="number" class="form-control" name="variants[${index}][price]" min="0" step="0.01" required>
-            <label>Stock:</label>
-            <input type="number" class="form-control" name="variants[${index}][stock]" min="0" required>
-            <label>Variant Images:</label>
-            <input type="file" class="form-control variantImages" name="variant_images[${index}][]" data-index="${index}" multiple accept="image/jpeg,image/png">
-            <div id="variantImagesPreview_${index}" class="d-flex flex-wrap"></div>
-            <button type="button" class="btn btn-danger btn-sm remove-variant mt-2" data-index="${index}">Remove Variant</button>
-          </div>`;
-        variantContainer.insertAdjacentHTML("beforeend", variantHtml);
-      }
-
-      // Validate File Input
-      function validateFiles(files) {
-        const validTypes = ["image/jpeg", "image/png"];
-        const maxSize = 5 * 1024 * 1024; // 5MB
-        for (let file of files) {
-          if (!validTypes.includes(file.type)) {
-            Swal.fire("Error", "Only JPEG/PNG images are allowed!", "error");
-            return false;
-          }
-          if (file.size > maxSize) {
-            Swal.fire("Error", "Image size must be less than 5MB!", "error");
-            return false;
-          }
+        if (removedVariants.length > 0) {
+          formData.append("removed_variants", JSON.stringify(removedVariants));
         }
-        return true;
-      }
 
-      // Handle File Input
-      function handleFileInput(event, variantIndex) {
-        const files = Array.from(event.target.files);
-        if (files.length === 0) return;
-        if (!validateFiles(files)) return;
+        try {
+          const response = await fetch(`/admin/edit-Product/${productId}`, {
+            method: "POST",
+            body: formData,
+          });
 
-        croppedVariantImages[variantIndex] = []; // Reset images for this variant
-        files.forEach((file, fileIndex) => {
-          currentFile = file;
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            cropperImage.src = e.target.result;
-            cropperModal.style.display = "block";
-            croppingTarget = variantIndex;
-
-            if (cropper) cropper.destroy();
-            cropper = new Cropper(cropperImage, { aspectRatio: NaN, viewMode: 2 });
-
-            // Crop Image
-            cropImageBtn.onclick = () => handleCroppedImage(variantIndex, file.name);
-
-            // Cancel Crop
-            cancelCropBtn.onclick = () => {
-              cropperModal.style.display = "none";
-              cropper.destroy();
-            };
-
-            // Skip Crop
-            skipCropBtn.onclick = () => {
-              const fileName = `original_${Date.now()}_${fileIndex}.jpg`;
-              const newFile = new File([file], fileName, { type: file.type });
-              croppedVariantImages[variantIndex].push(newFile);
-              displayImagePreview(variantIndex, newFile);
-              cropperModal.style.display = "none";
-              cropper.destroy();
-            };
-          };
-          reader.readAsDataURL(file);
-        });
-      }
-
-      // Handle Cropped Image
-      function handleCroppedImage(variantIndex, originalName) {
-        const canvas = cropper.getCroppedCanvas();
-        canvas.toBlob((blob) => {
-          const fileName = `cropped_${Date.now()}_${originalName}`;
-          const file = new File([blob], fileName, { type: "image/jpeg" });
-          croppedVariantImages[variantIndex].push(file);
-          displayImagePreview(variantIndex, file);
-          cropperModal.style.display = "none";
-          cropper.destroy();
-        }, "image/jpeg");
-      }
-
-      // Display Image Preview
-      function displayImagePreview(variantIndex, file) {
-        const previewContainer = document.getElementById(`variantImagesPreview_${variantIndex}`);
-        const previewDiv = document.createElement("div");
-        previewDiv.className = "image-preview";
-        const imgPreview = document.createElement("img");
-        imgPreview.src = URL.createObjectURL(file);
-        imgPreview.style.width = "100px";
-        imgPreview.style.margin = "5px";
-        previewDiv.appendChild(imgPreview);
-        previewContainer.appendChild(previewDiv);
-      }
-
-      // Validate Variants
-      function validateVariants() {
-        const variants = document.querySelectorAll(".variant-group");
-        const seen = new Set();
-        for (let i = 0; i < variants.length; i++) {
-          const color = variants[i].querySelector(`[name="variants[${i}][color]"]`).value;
-          const size = variants[i].querySelector(`[name="variants[${i}][size]"]`).value;
-          const price = parseFloat(variants[i].querySelector(`[name="variants[${i}][price]"]`).value);
-          const stock = parseInt(variants[i].querySelector(`[name="variants[${i}][stock]"]`).value);
-          const key = `${color}-${size}`;
-
-          if (!color || !size || isNaN(price) || isNaN(stock)) {
-            Swal.fire("Error", `Please fill all fields for variant ${i + 1}!`, "error");
-            return false;
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
           }
 
-          if (seen.has(key)) {
-            Swal.fire("Error", `Duplicate variant: ${color}, ${size}`, "error");
-            return false;
+          const data = await response.json();
+          if (data.success) {
+            Swal.fire("Success!", "Product edited successfully.", "success").then(() => {
+              window.location.href = "/admin/products";
+            });
+          } else {
+            Swal.fire("Error", data.message || "Something went wrong!", "error");
           }
-          seen.add(key);
-
-          if (price <= 0) {
-            Swal.fire("Error", `Price for variant ${i + 1} must be positive`, "error");
-            return false;
-          }
-          if (stock < 0) {
-            Swal.fire("Error", `Stock for variant ${i + 1} cannot be negative`, "error");
-            return false;
-          }
+        } catch (error) {
+          console.error("Error:", error);
+          Swal.fire("Error", `Failed to submit form: ${error.message}`, "error");
         }
-        return true;
       }
     });
+  });
+
+  // Add Variant Group
+  function addVariantGroup() {
+    const index = document.querySelectorAll(".variant-group").length;
+    const variantHtml = `
+      <div class="variant-group border p-3 mt-2" data-index="${index}">
+        <label>Color:</label>
+        <input type="text" class="form-control" name="variants[${index}][color]" required>
+        <label>Size:</label>
+        <select class="form-select" name="variants[${index}][size]" required>
+          <option value="S">S</option>
+          <option value="M">M</option>
+          <option value="L">L</option>
+          <option value="XL">XL</option>
+        </select>
+        <label>Price:</label>
+        <input type="number" class="form-control" name="variants[${index}][price]" required>
+        <label>Stock:</label>
+        <input type="number" class="form-control" name="variants[${index}][stock]" min="0" step="1" required>
+        <label>Variant Images (at least 3 required):</label>
+        <input type="file" class="form-control variantImages" name="variant_images[${index}][]" data-index="${index}" multiple accept="image/jpeg,image/png">
+        <div id="variantImagesPreview_${index}" class="d-flex flex-wrap"></div>
+        <button type="button" class="btn btn-danger btn-sm remove-variant mt-2" data-index="${index}">Remove Variant</button>
+      </div>`;
+    variantContainer.insertAdjacentHTML("beforeend", variantHtml);
+  }
+
+  // Reindex Variants
+  function reindexVariants() {
+    const variantGroups = document.querySelectorAll(".variant-group");
+    variantGroups.forEach((group, newIndex) => {
+      group.dataset.index = newIndex;
+      group.querySelector(`[name$="[color]"]`).name = `variants[${newIndex}][color]`;
+      group.querySelector(`[name$="[size]"]`).name = `variants[${newIndex}][size]`;
+      group.querySelector(`[name$="[price]"]`).name = `variants[${newIndex}][price]`;
+      group.querySelector(`[name$="[stock]"]`).name = `variants[${newIndex}][stock]`;
+      const fileInput = group.querySelector(".variantImages");
+      fileInput.dataset.index = newIndex;
+      fileInput.name = `variant_images[${newIndex}][]`;
+      const previewDiv = group.querySelector(`[id^="variantImagesPreview_"]`);
+      previewDiv.id = `variantImagesPreview_${newIndex}`;
+      const removeButton = group.querySelector(".remove-variant");
+      removeButton.dataset.index = newIndex;
+      const idInput = group.querySelector(`[name$="[id]"]`);
+      if (idInput) idInput.name = `variants[${newIndex}][id]`;
+    });
+
+    // Reindex croppedVariantImages and removedImages
+    const newCroppedVariantImages = {};
+    const newRemovedImages = {};
+    Object.keys(croppedVariantImages).forEach((key) => {
+      const newKey = variantGroups[parseInt(key)] ? Array.from(variantGroups).indexOf(variantGroups[parseInt(key)]) : key;
+      newCroppedVariantImages[newKey] = croppedVariantImages[key];
+    });
+    Object.keys(removedImages).forEach((key) => {
+      const newKey = variantGroups[parseInt(key)] ? Array.from(variantGroups).indexOf(variantGroups[parseInt(key)]) : key;
+      newRemovedImages[newKey] = removedImages[key];
+    });
+    croppedVariantImages = newCroppedVariantImages;
+    removedImages = newRemovedImages;
+    console.log("Reindexed croppedVariantImages:", newCroppedVariantImages);
+    console.log("Reindexed removedImages:", newRemovedImages);
+  }
+
+  // Validate File Input
+  function validateFiles(files) {
+    const validTypes = ["image/jpeg", "image/png"];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    for (let file of files) {
+      if (!validTypes.includes(file.type)) {
+        Swal.fire("Error", "Only JPEG/PNG images are allowed!", "error");
+        return false;
+      }
+      if (file.size > maxSize) {
+        Swal.fire("Error", "Image size must be less than 5MB!", "error");
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Handle File Input
+  function handleFileInput(event, variantIndex) {
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
+    if (!validateFiles(files)) return;
+
+    if (!croppedVariantImages[variantIndex]) {
+      croppedVariantImages[variantIndex] = [];
+    }
+
+    let currentIndex = 0;
+    function cropNextImage() {
+      if (currentIndex < files.length) {
+        currentFile = files[currentIndex];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          cropperImage.src = e.target.result;
+          cropperModal.style.display = "block";
+          croppingTarget = variantIndex;
+
+          if (cropper) cropper.destroy();
+          cropper = new Cropper(cropperImage, { aspectRatio: NaN, viewMode: 2 });
+
+          // Crop Image
+          cropImageBtn.onclick = () => {
+            handleCroppedImage(variantIndex, currentFile.name);
+            currentIndex++;
+            cropNextImage();
+          };
+
+          // Cancel Crop
+          cancelCropBtn.onclick = () => {
+            cropperModal.style.display = "none";
+            cropper.destroy();
+            currentIndex++;
+            cropNextImage();
+          };
+
+          // Skip Crop
+          skipCropBtn.onclick = () => {
+            const fileName = `original_${Date.now()}_${currentIndex}.jpg`;
+            const newFile = new File([currentFile], fileName, { type: currentFile.type });
+            croppedVariantImages[variantIndex].push(newFile);
+            console.log(`Calling displayImagePreview for variant ${variantIndex}, file: ${newFile.name}`);
+            displayImagePreview(variantIndex, newFile);
+            cropperModal.style.display = "none";
+            cropper.destroy();
+            currentIndex++;
+            cropNextImage();
+          };
+        };
+        reader.readAsDataURL(currentFile);
+      } else {
+        cropperModal.style.display = "none";
+      }
+    }
+    cropNextImage();
+  }
+
+  // Handle Cropped Image
+  function handleCroppedImage(variantIndex, originalName) {
+    const canvas = cropper.getCroppedCanvas();
+    canvas.toBlob((blob) => {
+      const fileName = `cropped_${Date.now()}_${originalName}`;
+      const file = new File([blob], fileName, { type: "image/jpeg" });
+      croppedVariantImages[variantIndex].push(file);
+      console.log(`Calling displayImagePreview for variant ${variantIndex}, file: ${file.name}`);
+      displayImagePreview(variantIndex, file);
+      cropperModal.style.display = "none";
+      cropper.destroy();
+    }, "image/jpeg");
+  }
+
+  // Display Image Preview
+  function displayImagePreview(variantIndex, file) {
+    const previewContainer = document.getElementById(`variantImagesPreview_${variantIndex}`);
+    if (!previewContainer) {
+      console.error(`Preview container variantImagesPreview_${variantIndex} not found`);
+      Swal.fire("Error", "Unable to display image preview. Please try again.", "error");
+      return;
+    }
+
+    console.log(`Displaying preview for variant ${variantIndex}, file: ${file.name}`);
+    const previewDiv = document.createElement("div");
+    previewDiv.className = "image-preview";
+    const imgPreview = document.createElement("img");
+    imgPreview.src = URL.createObjectURL(file);
+    imgPreview.style.width = "100px";
+    imgPreview.style.margin = "5px";
+    imgPreview.onload = () => {
+      console.log(`Image loaded for variant ${variantIndex}`);
+      URL.revokeObjectURL(imgPreview.src);
+    };
+    imgPreview.onerror = () => {
+      console.error(`Failed to load image for variant ${variantIndex}`);
+      Swal.fire("Error", "Failed to load image preview.", "error");
+    };
+    previewDiv.appendChild(imgPreview);
+    // Add remove button for new images
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "btn btn-danger btn-sm remove-image";
+    removeButton.dataset.index = variantIndex;
+    removeButton.dataset.imageId = file.name; // Track new image
+    removeButton.textContent = "❌";
+    previewDiv.appendChild(removeButton);
+    previewContainer.appendChild(previewDiv);
+  }
+
+  // Validate Variants
+  function validateVariants() {
+    const variants = document.querySelectorAll(".variant-group");
+    const seen = new Set();
+    let isValid = true;
+
+    variants.forEach((variant, index) => {
+      const color = variant.querySelector(`[name="variants[${index}][color]"]`).value;
+      const size = variant.querySelector(`[name="variants[${index}][size]"]`).value;
+      const price = parseFloat(variant.querySelector(`[name="variants[${index}][price]"]`).value);
+      const stock = parseInt(variant.querySelector(`[name="variants[${index}][stock]"]`).value);
+      const key = `${color}-${size}`;
+
+      // Check required fields
+      if (!color || !size || isNaN(price) || isNaN(stock)) {
+        Swal.fire("Error", `Please fill all fields for variant ${index + 1}!`, "error");
+        isValid = false;
+        return;
+      }
+
+      // Check for duplicates
+      if (seen.has(key)) {
+        Swal.fire("Error", `Duplicate variant: ${color}, ${size}`, "error");
+        isValid = false;
+        return;
+      }
+      seen.add(key);
+
+      // Validate price
+      if (price <= 0) {
+        Swal.fire("Error", `Price for variant ${index + 1} must be a positive number!`, "error");
+        isValid = false;
+        return;
+      }
+
+      // Validate stock
+      if (stock < 0) {
+        Swal.fire("Error", `Stock for variant ${index + 1} must be a non-negative integer!`, "error");
+        isValid = false;
+        return;
+      }
+
+      // Validate images (at least 3)
+      const existingImages = variant.querySelectorAll(".image-preview img").length;
+      const removedCount = removedImages[index]?.length || 0;
+      const newImages = croppedVariantImages[index]?.length || 0;
+      const totalImages = existingImages; // Use DOM count directly
+      console.log(`Variant ${index + 1}: existingImages=${existingImages}, removedCount=${removedCount}, newImages=${newImages}, totalImages=${totalImages}`);
+      if (totalImages < 3) {
+        Swal.fire("Error", `Variant ${index + 1} must have at least 3 images!`, "error");
+        isValid = false;
+        return;
+      }
+    });
+
+    return isValid;
+  }
+});
   </script>
 <%- include('../admin/partials/footer') %>

@@ -1,4 +1,5 @@
 <%- include('../admin/partials/header') %>
+<!-- Note: Ensure /libs/simplebar/dist/simplebar.css exists in public/ or remove its reference in header.ejs if not needed -->
 <div class="container-fluid">
     <h2 class="mb-4">Order Details</h2>
     <div class="card">
@@ -21,9 +22,16 @@
                             <span class="badge <%= order.orderStatus === 'Cancelled' ? 'bg-danger' : order.orderStatus === 'Delivered' ? 'bg-success' : 'bg-secondary' %>">
                                 <%= order.orderStatus %>
                             </span>
+                        <% } else if (order.orderStatus === 'Pending') { %>
+                            <select class="form-select order-status d-inline-block w-auto" data-order-id="<%= order._id %>">
+                                <option value="Pending" selected>Pending</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
                         <% } else { %>
                             <select class="form-select order-status d-inline-block w-auto" data-order-id="<%= order._id %>">
-                                <option value="Pending" <%= order.orderStatus === 'Pending' ? 'selected' : '' %>>Pending</option>
+                                <% if (order.paymentStatus === 'Pending') { %>
+                                    <option value="Pending" <%= order.orderStatus === 'Pending' ? 'selected' : '' %>>Pending</option>
+                                <% } %>
                                 <option value="Processing" <%= order.orderStatus === 'Processing' ? 'selected' : '' %>>Processing</option>
                                 <option value="Shipped" <%= order.orderStatus === 'Shipped' ? 'selected' : '' %>>Shipped</option>
                                 <option value="Delivered" <%= order.orderStatus === 'Delivered' ? 'selected' : '' %>>Delivered</option>
@@ -123,7 +131,7 @@
                 if (result.isConfirmed) {
                     try {
                         const response = await fetch(`/admin/update-order-status/${orderId}`, {
-                            method: "PATCH",
+                            method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ status: newStatus })
                         });
@@ -131,8 +139,8 @@
                         if (response.ok) {
                             Swal.fire("Success!", result.message, "success");
 
-                            if (newStatus === "Cancelled" || newStatus === "Delivered" || newStatus === "Returned") {
-                                const badgeClass = newStatus === "Cancelled" ? "bg-danger" : newStatus === "Delivered" ? "bg-success" : "bg-secondary";
+                            if (newStatus === 'Cancelled' || newStatus === 'Delivered' || newStatus === 'Returned') {
+                                const badgeClass = newStatus === 'Cancelled' ? "bg-danger" : newStatus === 'Delivered' ? "bg-success" : "bg-secondary";
                                 statusContainer.innerHTML = `
                                     <strong>Order Status:</strong>
                                     <span class="badge ${badgeClass}">${newStatus}</span>

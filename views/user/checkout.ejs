@@ -197,22 +197,17 @@
                                     <div>
                                         <strong><%= item.productId.name %></strong>
                                         <small>(<%= item.variantId.size %>, <%= item.variantId.color %>)</small> <small>(X<%= item.quantity %>)</small>
-                                        
                                     </div>
                                     <span>₹<%= (item.originalPrice * item.quantity).toFixed(2) %></span>
                                 </li>
                                 <% if(item.discountPercentage){%>
-
-                                <li class="d-flex justify-content-between py-2">
-                                    <div>
-                                        <small style="color: green;">Discount: <%=item.discountPercentage %>% </small>
-                                        
-                                        
-                                    </div>
-                                    <span style="color: green;"> -₹<%=  ((item.originalPrice * item.quantity) * item.discountPercentage/100).toFixed(2) %></span>
-                                </li>
-                            <%}%>
-                              
+                                    <li class="d-flex justify-content-between py-2">
+                                        <div>
+                                            <small style="color: green;">Discount: <%=item.discountPercentage %>% </small>
+                                        </div>
+                                        <span style="color: green;"> -₹<%=  ((item.originalPrice * item.quantity) * item.discountPercentage/100).toFixed(2) %></span>
+                                    </li>
+                                <%}%>
                             <% }) %>
                         <% } else { %>
                             <li class="py-2">Your cart is empty.</li>
@@ -224,7 +219,7 @@
                             Subtotal <span>₹<%= subtotal.toFixed(2) %></span>
                         </li>
                         <li class="d-flex justify-content-between py-2">
-                         Shipping Charges <span id="shippingCost" style="color: green;">Free</span>
+                            Shipping Charges <span id="shippingCost" style="color: green;">Free</span>
                         </li>
                         <li class="d-flex justify-content-between py-2 d-none" id="discountRow">
                             Discount <span id="discountAmount" style="color: green;">-₹0.00</span>
@@ -389,7 +384,7 @@
             const shippingCost = parseFloat("<%= shippingCost %>");
             const couponCode = document.getElementById("couponName").textContent || "";
             
-            const grossPrice = subtotal; // Subtotal is gross price (no item-level discounts yet)
+            const grossPrice = subtotal; 
             let discountAmount = 0; 
             let couponDiscountAmount = 0;
             let total = grossPrice + shippingCost;
@@ -456,7 +451,6 @@
                 couponDiscountRow.classList.add("d-none");
             }
     
-            // Display discount if applicable (currently 0 unless manual discounts are added)
             if (discountAmount > 0) {
                 discountAmountDisplay.textContent = `-₹${discountAmount.toFixed(2)}`;
                 discountRow.classList.remove("d-none");
@@ -689,7 +683,9 @@
     
             const retryResult = await retryResponse.json();
             if (!retryResult.success) {
-                Swal.fire("Error", retryResult.message || "Failed to retry payment!", "error");
+                Swal.fire("Error", retryResult.message || "Failed to retry payment!", "error").then(() => {
+                    window.location.href = `/user/order-failure?orderId=${pendingOrder.orderId}&error=${encodeURIComponent(retryResult.message || "Failed to retry payment")}`;
+                });
                 return;
             }
     
@@ -707,24 +703,32 @@
                     clearInterval(timerInterval);
                     paymentTimer.classList.add("d-none");
     
-                    const verifyResponse = await fetch("/user/verify-razorpay-payment", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_signature: response.razorpay_signature,
-                            orderId: retryResult.orderId
-                        }),
-                    });
-    
-                    const verifyResult = await verifyResponse.json();
-                    if (verifyResult.success) {
-                        Swal.fire("Success", "Payment successful! Order placed!", "success").then(() => {
-                            window.location.href = `/user/order-success?orderId=${verifyResult.orderId}`;
+                    try {
+                        const verifyResponse = await fetch("/user/verify-razorpay-payment", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_signature: response.razorpay_signature,
+                                orderId: retryResult.orderId
+                            }),
                         });
-                    } else {
-                        Swal.fire("Error", verifyResult.message || "Payment verification failed!", "error");
+    
+                        const verifyResult = await verifyResponse.json();
+                        if (verifyResult.success) {
+                            Swal.fire("Success", "Payment successful! Order placed!", "success").then(() => {
+                                window.location.href = `/user/order-success?orderId=${verifyResult.orderId}`;
+                            });
+                        } else {
+                            Swal.fire("Error", verifyResult.message || "Payment verification failed!", "error").then(() => {
+                                window.location.href = `/user/order-failure?orderId=${verifyResult.orderId}&error=${encodeURIComponent(verifyResult.message || "Payment verification failed")}`;
+                            });
+                        }
+                    } catch (error) {
+                        Swal.fire("Error", "Network error during payment verification", "error").then(() => {
+                            window.location.href = `/user/order-failure?orderId=${retryResult.orderId}&error=Network%20error%20during%20payment%20verification`;
+                        });
                     }
                 },
                 prefill: {
@@ -742,16 +746,24 @@
                     ondismiss: function() {
                         pendingOrder = { orderId: retryResult.orderId, paymentDeadline: retryResult.paymentDeadline };
                         pendingRazorpayMessage.classList.remove("d-none");
+                        Swal.fire("Payment Cancelled", "You cancelled the payment. You can retry from the checkout page.", "warning");
                     }
                 }
             };
     
             try {
                 const rzp = new Razorpay(options);
+                rzp.on('payment.failed', function (response) {
+                    Swal.fire("Error", response.error.description || "Payment failed. Please try again.", "error").then(() => {
+                        window.location.href = `/user/order-failure?orderId=${retryResult.orderId}&error=${encodeURIComponent(response.error.description || "Payment failed")}`;
+                    });
+                });
                 rzp.open();
             } catch (error) {
                 clearInterval(timerInterval);
-                Swal.fire("Error", "Failed to open Razorpay for retry", "error");
+                Swal.fire("Error", "Failed to initialize Razorpay for retry", "error").then(() => {
+                    window.location.href = `/user/order-failure?orderId=${retryResult.orderId}&error=Failed%20to%20initialize%20Razorpay%20Checkout`;
+                });
             }
         });
     
@@ -819,7 +831,9 @@
     
                             const result = await createResponse.json();
                             if (!result.success) {
-                                Swal.fire("Error", result.message || "Failed to create Razorpay order!", "error");
+                                Swal.fire("Error", result.message || "Failed to create Razorpay order!", "error").then(() => {
+                                    window.location.href = `/user/order-failure?orderId=${result.orderId || ''}&error=${encodeURIComponent(result.message || "Failed to create Razorpay order")}`;
+                                });
                                 return;
                             }
     
@@ -837,25 +851,32 @@
                                     clearInterval(timerInterval);
                                     paymentTimer.classList.add("d-none");
     
-                                    const verifyResponse = await fetch("/user/verify-razorpay-payment", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({
-                                            razorpay_payment_id: response.razorpay_payment_id,
-                                            razorpay_order_id: response.razorpay_order_id,
-                                            razorpay_signature: response.razorpay_signature,
-                                            orderId: result.orderId
-                                        }),
-                                    });
-    
-                                    const verifyResult = await verifyResponse.json();
-                                    if (verifyResult.success) {
-                                        Swal.fire("Success", "Payment successful! Order placed!", "success").then(() => {
-                                            window.location.href = `/user/order-success?orderId=${verifyResult.orderId}`;
+                                    try {
+                                        const verifyResponse = await fetch("/user/verify-razorpay-payment", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                                razorpay_payment_id: response.razorpay_payment_id,
+                                                razorpay_order_id: response.razorpay_order_id,
+                                                razorpay_signature: response.razorpay_signature,
+                                                orderId: result.orderId
+                                            }),
                                         });
-                                    } else {
-                                        Swal.fire("Error", verifyResult.message || "Payment verification failed!", "error");
-                                        window.location.href = `/user/order-failure?orderId=${verifyResult.orderId}`;
+    
+                                        const verifyResult = await verifyResponse.json();
+                                        if (verifyResult.success) {
+                                            Swal.fire("Success", "Payment successful! Order placed!", "success").then(() => {
+                                                window.location.href = `/user/order-success?orderId=${verifyResult.orderId}`;
+                                            });
+                                        } else {
+                                            Swal.fire("Error", verifyResult.message || "Payment verification failed!", "error").then(() => {
+                                                window.location.href = `/user/order-failure?orderId=${verifyResult.orderId}&error=${encodeURIComponent(verifyResult.message || "Payment verification failed")}`;
+                                            });
+                                        }
+                                    } catch (error) {
+                                        Swal.fire("Error", "Network error during payment verification", "error").then(() => {
+                                            window.location.href = `/user/order-failure?orderId=${result.orderId}&error=Network%20error%20during%20payment%20verification`;
+                                        });
                                     }
                                 },
                                 prefill: {
@@ -873,16 +894,24 @@
                                     ondismiss: function() {
                                         pendingOrder = { orderId: result.orderId, paymentDeadline: result.paymentDeadline };
                                         pendingRazorpayMessage.classList.remove("d-none");
+                                        Swal.fire("Payment Cancelled", "You cancelled the payment. You can retry from the checkout page.", "warning");
                                     }
                                 }
                             };
     
                             try {
                                 const rzp = new Razorpay(options);
+                                rzp.on('payment.failed', function (response) {
+                                    Swal.fire("Error", response.error.description || "Payment failed. Please try again.", "error").then(() => {
+                                        window.location.href = `/user/order-failure?orderId=${result.orderId}&error=${encodeURIComponent(response.error.description || "Payment failed")}`;
+                                    });
+                                });
                                 rzp.open();
                             } catch (error) {
                                 clearInterval(timerInterval);
-                                Swal.fire("Error", "Failed to open Razorpay Checkout", "error");
+                                Swal.fire("Error", "Failed to initialize Razorpay Checkout", "error").then(() => {
+                                    window.location.href = `/user/order-failure?orderId=${result.orderId}&error=Failed%20to%20initialize%20Razorpay%20Checkout`;
+                                });
                             }
                         } else if (selectedPayment.value === "WALLET") {
                             if (!await validateWalletPayment(total)) {
@@ -909,7 +938,9 @@
                         }
                     } catch (error) {
                         clearInterval(timerInterval);
-                        Swal.fire("Error", "Something went wrong: " + error.message, "error");
+                        Swal.fire("Error", "Something went wrong: " + error.message, "error").then(() => {
+                            window.location.href = `/user/order-failure?orderId=${result?.orderId || ''}&error=${encodeURIComponent(error.message || "Unexpected error")}`;
+                        });
                     }
                 }
             });

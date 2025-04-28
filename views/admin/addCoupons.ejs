@@ -1,3 +1,4 @@
+
 <%- include('../admin/partials/header') %>
 
 <div class="container-fluid">
@@ -6,7 +7,7 @@
             <h5 class="card-title fw-semibold mb-4">Coupon Management</h5>
             <div class="card mb-0">
                 <div class="card-body">
-                    <form id="couponForm">
+                    <form id="couponForm" novalidate>
                         <fieldset>
                             <legend class="text-center">Add New Coupon</legend>
                             <div class="mb-3">
@@ -30,7 +31,7 @@
                                 <input type="number" class="form-control" id="minimumPurchase" name="minimumPurchase" value="0">
                             </div>
                             <div class="mb-3">
-                                <label for="maximumDiscount" class="form-label">Maximum Discount Amount (₹)</label>
+                                <label for="maximumDiscount" class="form-label">Maximum Purchase Amount (₹)</label>
                                 <input type="number" class="form-control" id="maximumDiscount" name="maximumDiscount" value="0">
                                 <div class="form-text">Set to 0 for no maximum limit</div>
                             </div>
@@ -52,6 +53,7 @@
     </div>
     <a href="/admin/coupons">Back</a>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -64,7 +66,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const expiryDateInput = document.getElementById('expiryDate');
     const valueHelp = document.getElementById('valueHelp');
     const submitBtn = document.getElementById('submitBtn');
-    
+
+    // Check if SweetAlert2 is loaded
+    if (typeof Swal === 'undefined') {
+        console.error('SweetAlert2 is not loaded. Falling back to native alerts.');
+        window.alert('Error: SweetAlert2 library failed to load. Please check your internet connection or CDN.');
+    }
+
     // Auto-generate coupon code button
     const generateCodeBtn = document.createElement('button');
     generateCodeBtn.type = 'button';
@@ -101,6 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set minimum date to today
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const dd = String(today.getDate()).padStart(2, '0');
@@ -110,128 +119,108 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form submission with AJAX
     couponForm.addEventListener('submit', async function(event) {
         event.preventDefault();
+        console.log('Form submit event triggered'); // Debug statement
         
         submitBtn.disabled = true;
         submitBtn.textContent = 'Creating...';
 
-        
         const code = codeInput.value.trim();
         const discountType = discountTypeSelect.value;
         const discountValue = parseFloat(discountValueInput.value) || 0;
         const minimumPurchase = parseFloat(minimumPurchaseInput.value) || 0;
         const maximumDiscount = parseFloat(maximumDiscountInput.value) || 0;
-        const expiryDate = new Date(expiryDateInput.value);
+        const expiryDateValue = expiryDateInput.value;
         const currentDate = new Date();
+        currentDate.setHours(0, 0, 0, 0);
+        const expiryDate = new Date(expiryDateValue);
+        expiryDate.setHours(0, 0, 0, 0);
 
+        // Validation function with SweetAlert2 or fallback
+        const showError = (title, text) => {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: title,
+                    text: text,
+                });
+            } else {
+                alert(`${title}: ${text}`);
+            }
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Coupon';
+        };
+
+        // Coupon code validation
         const codeRegex = /^[A-Z0-9]+$/;
         if (!code || !codeRegex.test(code)) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Coupon Code',
-                text: 'Coupon code must contain only letters and numbers (no spaces or special characters)',
-            });
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Coupon';
+            showError('Invalid Coupon Code', 'Coupon code must contain only letters and numbers (no spaces or special characters)');
             return;
         }
 
-        if( discountValue> minimumPurchase){
-            Swal.fire({
-                icon: 'error',
-                title: 'MissConfigaration',
-                text: 'Discount amount cannot be greater than minimum purchase value',
-            });
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Coupon';
-            return
-        }
-        
+        // Discount type validation
         if (!['percentage', 'fixed'].includes(discountType)) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Discount Type',
-                text: 'Discount type must be either "percentage" or "fixed"',
-            });
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Coupon';
-            return;
-        }
-        
-        if (discountValue <= 0) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Discount Value',
-                text: 'Discount value must be greater than zero',
-            });
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Coupon';
-            return;
-        }
-        
-        if (discountType === 'percentage' && (discountValue < 1 || discountValue > 100)) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Percentage',
-                text: 'Percentage discount must be between 1 and 100',
-            });
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Coupon';
-            return;
-        }
-        
-        if (minimumPurchase < 0) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Minimum Purchase',
-                text: 'Minimum purchase cannot be negative',
-            });
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Coupon';
-            return;
-        }
-        
-        if (maximumDiscount < 0) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Maximum Discount',
-                text: 'Maximum discount amount cannot be negative',
-            });
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Coupon';
-            return;
-        }
-        
-        if (discountType === 'fixed' && maximumDiscount > 0 && maximumDiscount < discountValue) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Maximum Discount',
-                text: 'Maximum discount amount cannot be less than the fixed discount value',
-            });
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Coupon';
-            return;
-        }
-        
-        if (isNaN(expiryDate.getTime()) || expiryDate <= currentDate) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Expiry Date',
-                text: 'Expiry date must be in the future',
-            });
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Coupon';
+            showError('Invalid Discount Type', 'Discount type must be either "percentage" or "fixed"');
             return;
         }
 
+        // Discount value validation
+        if (isNaN(discountValue) || discountValue <= 0) {
+            showError('Invalid Discount Value', 'Discount value must be greater than zero');
+            return;
+        }
+
+        if (discountType === 'percentage' && (discountValue < 1 || discountValue > 100)) {
+            showError('Invalid Percentage', 'Percentage discount must be between 1 and 100');
+            return;
+        }
+
+        if (discountType === 'fixed' && discountValue > minimumPurchase) {
+            showError('Misconfiguration', 'Fixed discount amount cannot be greater than minimum purchase value');
+            return;
+        }
+
+        // Minimum purchase validation
+        if (minimumPurchase < 0) {
+            showError('Invalid Minimum Purchase', 'Minimum purchase cannot be negative');
+            return;
+        }
+
+        // Maximum discount validation
+        if (maximumDiscount < 0) {
+            showError('Invalid Maximum Discount', 'Maximum discount amount cannot be negative');
+            return;
+        }
+
+        if (discountType === 'fixed' && maximumDiscount > 0 && maximumDiscount < discountValue) {
+            showError('Invalid Maximum Discount', 'Maximum discount amount cannot be less than the fixed discount value');
+            return;
+        }
+
+        // Expiry date validation
+        if (!expiryDateValue) {
+            showError('Invalid Expiry Date', 'Please select an expiry date');
+            return;
+        }
+
+        if (isNaN(expiryDate.getTime())) {
+            showError('Invalid Expiry Date', 'Please enter a valid date');
+            return;
+        }
+
+        if (expiryDate < currentDate) {
+            showError('Invalid Expiry Date', 'Expiry date must be today or in the future');
+            return;
+        }
+
+        // Prepare form data
         const formData = new FormData();
         formData.append('code', code);
         formData.append('discountType', discountType);
         formData.append('discountValue', discountValue.toString());
         formData.append('minimumPurchase', minimumPurchase.toString());
         formData.append('maximumDiscount', maximumDiscount.toString());
-        formData.append('expiryDate', expiryDateInput.value); // Use raw value to avoid timezone issues
-        formData.append('isActive', isActive.toString());
-        formData.set('isActive', document.getElementById('isActive').checked);
+        formData.append('expiryDate', expiryDateInput.value);
+        formData.append('isActive', document.getElementById('isActive').checked.toString());
 
         try {
             const response = await fetch('/admin/addcoupon', {
@@ -246,21 +235,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(errorMessages);
             }
 
-            Swal.fire({
-                icon: 'success',
-                title: 'Success',
-                text: result.message || 'Coupon created successfully!',
-                showConfirmButton: true,
-            }).then(() => {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: result.message || 'Coupon created successfully!',
+                    showConfirmButton: true,
+                }).then(() => {
+                    window.location.href = '/admin/coupons';
+                });
+            } else {
+                alert('Coupon created successfully!');
                 window.location.href = '/admin/coupons';
-            });
+            }
         } catch (error) {
             console.error('Error:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Error creating coupon:\n' + error.message,
-            });
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error creating coupon:\n' + error.message,
+                });
+            } else {
+                alert('Error creating coupon: ' + error.message);
+            }
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Create Coupon';
@@ -283,7 +281,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const maxDiscount = maximumDiscountInput.value || '0';
         const expiryDate = expiryDateInput.value ? new Date(expiryDateInput.value).toLocaleDateString() : 'Not set';
         
-        let discountText = discountType === 'percentage' ? `${discountValue}% OFF` : `₹${discountValue} OFF`;
+        let discountText = discountType === 'percentage' ? `${discountValue}% OFF` : ` ₹${discountValue} OFF`;
         if (discountType === 'percentage' && maxDiscount > 0) {
             discountText += ` (Max ₹${maxDiscount})`;
         }
