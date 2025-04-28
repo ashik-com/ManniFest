@@ -2,6 +2,7 @@
 const Category = require("../models/categorySchema");
 const Product = require("../models/productSchema");
 const Offer = require("../models/offersSchema");
+const mongoose = require('mongoose')
 
 // Get all offers (both product and category)
 exports.getOffer = async (req, res) => {
@@ -348,5 +349,45 @@ exports.deleteProductOffer =    async (req, res) => {
     } catch (error) {
         console.error('Error deleting offer:', error);
         res.status(500).json({ error: 'Server error' });
+    }
+};
+
+exports.deleteCategoryOffer =async (req, res) => {
+    try {
+        const { offerId } = req.params; // Extract offerId from URL params
+
+        // Validate offerId
+        if (!mongoose.Types.ObjectId.isValid(offerId)) {
+            return res.status(400).json({ success: false, message: 'Invalid offer ID' });
+        }
+
+        // Find the offer
+        const offer = await Offer.findById(offerId);
+        if (!offer) {
+            return res.status(404).json({ success: false, message: 'Offer not found' });
+        }
+
+        // Ensure the offer is for a category
+        if (offer.type !== 'category') {
+            return res.status(400).json({ success: false, message: 'This offer is not associated with a category' });
+        }
+
+        // Find and update the category associated with the offer
+        const category = await Category.findOneAndUpdate(
+            { offer: offerId },
+            { $set: { offer: null } },
+            { new: true }
+        );
+        if (!category) {
+            console.warn(`No category found with offer ID ${offerId}`);
+        }
+
+        // Delete the offer
+        await Offer.findByIdAndDelete(offerId);
+
+        return res.status(200).json({ success: true, message: 'Offer deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting offer:', error);
+        return res.status(500).json({ success: false, message: 'Server error while deleting offer' });
     }
 };

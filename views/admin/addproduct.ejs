@@ -22,13 +22,11 @@
                 <div class="mb-3">
                   <label for="category" class="form-label">Category</label>
                   <select class="form-select" id="category" name="category">
-
                     <% categories.forEach(category=> { %>
                       <option value="<%= category._id %>">
                         <%= category.name %>
                       </option>
                       <% }) %>
-
                   </select>
                 </div>
 
@@ -46,7 +44,6 @@
                 <!-- Cropped Image Preview -->
                 <div id="croppedImagesPreview"></div>
 
-
                 <div class="mb-3">
                   <label for="isListed" class="form-label">Is Listed?</label>
                   <input type="checkbox" id="isListed" name="isListed" value="true">
@@ -62,16 +59,14 @@
 
                 <div class="mb-3">
                   <label for="price" class="form-label">Base Price</label>
-                  <input type="number" class="form-control" id="price" name="price">
+                  <input type="number" class="form-control" id="price" name="price" >
                 </div>
-
 
                 <div class="mb-3">
                   <label for="variants" class="form-label">Variants</label>
                   <button type="button" id="addVariant" class="btn btn-primary btn-sm">Add Variant</button>
                   <div id="variantContainer"></div>
                 </div>
-
 
                 <div class="mb-3">
                   <label for="specifications" class="form-label">Specifications</label>
@@ -80,9 +75,6 @@
                     <option value="Full sleeve">Full sleeve</option>
                     <option value="Half sleeve">Half sleeve</option>
                   </select>
-
-
-
                   <input type="text" class="form-control" name="specifications[fitType]" placeholder="Fit Type">
                 </div>
 
@@ -100,8 +92,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
-
-
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const variantContainer = document.getElementById("variantContainer");
@@ -117,10 +107,8 @@
       let croppingTarget = null;
       let croppedProductImages = [];
       let croppedVariantImages = {};
-      console.log("helloo")
 
       addVariantButton.addEventListener("click", addVariantGroup);
-
       productImageInput.addEventListener("change", (event) => handleFileInput(event, "product"));
       variantContainer.addEventListener("change", (event) => {
         if (event.target.classList.contains("variantImages")) {
@@ -137,29 +125,27 @@
           console.log("Form submission prevented as Add Product button was not clicked.");
           return;
         }
-        console.log("button submitedd")
 
         const productName = document.getElementById("name").value;
         const description = document.getElementById("description").value;
         const category = document.getElementById("category").value;
         const price = document.getElementById("price").value;
 
-
+        // Validate required fields
         if (!productName || !description || !category || !price) {
           Swal.fire("Error", "Please fill all required fields!", "error");
           return;
         }
 
-        if (isNaN(price) || price < 0) {
+        // Validate base price
+        if (isNaN(price) || parseFloat(price) <= 0) {
           Swal.fire({
             icon: "warning",
-            title: "Invalid Price",
-            text: "Price must be a positive number!",
+            title: "Invalid Base Price",
+            text: "Base price must be a positive number!",
           });
           return;
         }
-
-
 
         const variantGroups = document.querySelectorAll(".variant-group");
         if (variantGroups.length === 0) {
@@ -173,19 +159,41 @@
           const size = variant.querySelector(`[name="variants[${index}][size]"]`).value;
           const price = variant.querySelector(`[name="variants[${index}][price]"]`).value;
           const stock = variant.querySelector(`[name="variants[${index}][stock]"]`).value;
+          const variantImages = croppedVariantImages[index] || [];
 
+          // Validate variant fields
           if (!color || !size || !price || !stock) {
             Swal.fire("Error", `Please fill all fields for variant ${index + 1}!`, "error");
             isValid = false;
+            return;
+          }
+
+          // Validate variant price
+          if (isNaN(price) || parseFloat(price) <= 0) {
+            Swal.fire("Error", `Price for variant ${index + 1} must be a positive number!`, "error");
+            isValid = false;
+            return;
+          }
+
+          // Validate variant stock
+          if (isNaN(stock) || parseInt(stock) < 0) {
+            Swal.fire("Error", `Stock for variant ${index + 1} must be a non-negative integer!`, "error");
+            isValid = false;
+            return;
+          }
+
+          // Validate variant images
+          if (variantImages.length < 3) {
+            Swal.fire("Error", `Variant ${index + 1} must have at least 3 images!`, "error");
+            isValid = false;
+            return;
           }
         });
 
         if (!isValid) return;
 
-
         const formData = new FormData(event.target);
         croppedProductImages.forEach((image) => formData.append("images", image));
-
 
         variantGroups.forEach((variant, index) => {
           const color = variant.querySelector(`[name="variants[${index}][color]"]`).value;
@@ -207,10 +215,7 @@
               variantData.images.push(image.name);
             });
           }
-
         });
-
-
 
         try {
           const response = await fetch("/admin/addProduct", {
@@ -232,11 +237,10 @@
         }
       });
 
-
       function addVariantGroup() {
         const index = document.querySelectorAll(".variant-group").length;
         const variantHtml = `
-            <div class="variant-group border p-3 mt-2">
+            <div class="variant-group border p-3 mt-2" data-index="${index}">
                 <label>Color:</label>
                 <input type="text" class="form-control" name="variants[${index}][color]" required>
 
@@ -249,19 +253,64 @@
                 </select>
 
                 <label>Price:</label>
-                <input type="number" class="form-control" name="variants[${index}][price]" required>
+                <input type="number" class="form-control" name="variants[${index}][price]"  required>
 
                 <label>Stock:</label>
                 <input type="number" class="form-control" name="variants[${index}][stock]" required>
 
-                <label>Variant Images:</label>
+                <label>Variant Images (at least 3 required):</label>
                 <input type="file" class="form-control variantImages" data-index="${index}" multiple required>
 
                 <div id="variantImagesPreview_${index}"></div>
+
+                <button type="button" class="btn btn-danger btn-sm mt-2 removeVariant" data-index="${index}">Remove Variant</button>
             </div>
         `;
         variantContainer.insertAdjacentHTML("beforeend", variantHtml);
       }
+
+      function removeVariantGroup(index) {
+        const variantGroup = document.querySelector(`.variant-group[data-index="${index}"]`);
+        if (variantGroup) {
+          variantGroup.remove();
+          delete croppedVariantImages[index];
+
+          // Reindex remaining variants to maintain consistent naming
+          const variantGroups = document.querySelectorAll(".variant-group");
+          variantGroups.forEach((group, newIndex) => {
+            group.dataset.index = newIndex;
+            group.querySelector(`[name^="variants"]`).name = `variants[${newIndex}][color]`;
+            group.querySelector(`select[name^="variants"]`).name = `variants[${newIndex}][size]`;
+            group.querySelector(`input[name$="[price]"]`).name = `variants[${newIndex}][price]`;
+            group.querySelector(`input[name$="[stock]"]`).name = `variants[${newIndex}][stock]`;
+            const fileInput = group.querySelector(".variantImages");
+            fileInput.dataset.index = newIndex;
+            fileInput.name = `variant_images_${newIndex}`;
+            const previewDiv = group.querySelector(`[id^="variantImagesPreview_"]`);
+            previewDiv.id = `variantImagesPreview_${newIndex}`;
+            const removeButton = group.querySelector(".removeVariant");
+            removeButton.dataset.index = newIndex;
+          });
+
+          // Reindex croppedVariantImages
+          const newCroppedVariantImages = {};
+          Object.keys(croppedVariantImages).forEach((key) => {
+            if (parseInt(key) > index) {
+              newCroppedVariantImages[key - 1] = croppedVariantImages[key];
+            } else if (parseInt(key) < index) {
+              newCroppedVariantImages[key] = croppedVariantImages[key];
+            }
+          });
+          croppedVariantImages = newCroppedVariantImages;
+        }
+      }
+
+      variantContainer.addEventListener("click", (event) => {
+        if (event.target.classList.contains("removeVariant")) {
+          const index = parseInt(event.target.dataset.index);
+          removeVariantGroup(index);
+        }
+      });
 
       function handleFileInput(event, targetType, variantIndex = null) {
         const files = Array.from(event.target.files);
@@ -332,6 +381,5 @@
       }
     });
   </script>
-
 
   <%- include('../admin/partials/footer') %>

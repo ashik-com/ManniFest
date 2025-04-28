@@ -10,6 +10,7 @@ const WalletTransaction = require("../models/walletTransactionSchema")
 const LedgerEntry = require("../models/ledger")
 const Coupon = require("../models/couponSchema")
 const { v4: uuidv4 } = require('uuid');
+const mongoose = require("mongoose");
 
 
 exports.getLoginPage = (req, res) => {
@@ -95,40 +96,96 @@ exports.getCoupons = (req, res) => {
 
 
 
-exports.getOrders = async (req, res) => {
-  try {
-    const searchQuery = req.query.search || "";
-    let filter = {};
-    if (searchQuery) {
-      filter = {
-        $or: [
-          { _id: searchQuery },
-          { "items.productName": { $regex: searchQuery, $options: "i" } },
-          { "userId": searchQuery },
-        ],
-      };
-    }
-    const orders = await Order.find(filter)
-      .populate("userId", "name email")
-      .sort({ createdAt: -1 });
-    const transformedOrders = orders.map(order => {
-      const userEmail = order.userId ? order.userId.email : "N/A";
-      const allItemsCancelled = order.items.every(item => item.cancelled);
-      const activeItems = order.items.filter(item => !item.cancelled);
-      return {
-        ...order.toObject(),
-        userEmail,
-        allItemsCancelled,
-        hasActiveItems: activeItems.length > 0,
-      };
-    });
-    res.render("admin/orders", { orders: transformedOrders, searchQuery });
-  } catch (error) {
-    console.error("Error fetching orders:", error);
-    res.status(500).send("Internal Server Error");
-  }
+const escapeRegex = (text) => {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
 };
 
+// Helper function to build search filter
+const buildSearchFilter = async (searchQuery) => {
+  const filter = {};
+  if (searchQuery) {
+    const regex = new RegExp(escapeRegex(searchQuery), "i");
+
+    // Initialize $or array for multiple search conditions
+    filter.$or = [
+      { orderId: regex },
+      { status: regex },
+      { "items.productName": regex },
+    ];
+
+    // Search for users by email to include their orders
+    const users = await User.find({ email: regex }, "_id");
+    if (users.length > 0) {
+      filter.$or.push({ userId: { $in: users.map((u) => u._id) } });
+    }
+
+    // If searchQuery is a valid ObjectId, include _id and userId search
+    if (mongoose.Types.ObjectId.isValid(searchQuery)) {
+      filter.$or.push(
+        { _id: new mongoose.Types.ObjectId(searchQuery) },
+        { userId: new mongoose.Types.ObjectId(searchQuery) }
+      );
+    }
+  }
+  return filter;
+};
+
+// Helper function to transform orders
+const transformOrders = (orders) => {
+  return orders.map((order) => {
+    const userEmail = order.userId ? order.userId.email : "N/A";
+    const allItemsCancelled = order.items.every((item) => item.cancelled);
+    const activeItems = order.items.filter((item) => !item.cancelled);
+    return {
+      ...order.toObject(),
+      userEmail,
+      allItemsCancelled,
+      hasActiveItems: activeItems.length > 0,
+    };
+  });
+};
+
+exports.getOrders = async (req, res) => {
+  try {
+    // Validate and sanitize inputs
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = 10;
+    const searchQuery = req.query.search ? String(req.query.search).trim() : "";
+
+    // Build filter
+    const filter = await buildSearchFilter(searchQuery);
+
+    // Get total orders and calculate pages
+    const totalOrders = await Order.countDocuments(filter);
+    const totalPages = Math.ceil(totalOrders / limit) || 1;
+
+    // Ensure page doesn't exceed totalPages
+    const currentPage = Math.min(page, totalPages);
+
+    // Fetch orders
+    const orders = await Order.find(filter)
+      .populate("userId", "email")
+      .sort({ createdAt: -1 })
+      .skip((currentPage - 1) * limit)
+      .limit(limit);
+
+    // Transform orders
+    const transformedOrders = transformOrders(orders);
+
+    // Render response
+    res.render("admin/orders", {
+      orders: transformedOrders,
+      searchQuery,
+      totalPages,
+      currentPage,
+    });
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    res.status(500).render("admin/error", {
+      message: "An error occurred while fetching orders.",
+    });
+  }
+};
 
 exports.orderDetails = async (req, res) => {
   try {
@@ -149,30 +206,65 @@ exports.updateStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
     const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ["Pending", "Processing", "Shipped", "Delivered", "Cancelled", "Returned", "Return Requested"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid status" });
+    }
+
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
+
+    // Restrict changes for non-editable statuses
     if (order.orderStatus === "Cancelled") {
       return res.status(400).json({ success: false, message: "Cannot change status of a fully cancelled order" });
     }
     if (order.orderStatus === "Delivered") {
       return res.status(400).json({ success: false, message: "Cannot change status of a delivered order" });
     }
+    if (order.orderStatus === "Returned") {
+      return res.status(400).json({ success: false, message: "Cannot change status of a returned order" });
+    }
+
+    // Restrict Pending transitions
+    if (order.orderStatus === "Pending" && status !== "Cancelled") {
+      return res.status(400).json({ success: false, message: "Pending orders can only be cancelled" });
+    }
+    if (status === "Pending" && order.paymentStatus !== "Pending") {
+      return res.status(400).json({ success: false, message: "Cannot set status to Pending unless payment is Pending" });
+    }
+
+    // Prevent delivery with no active items
     const activeItems = order.items.filter(item => !item.cancelled);
     if (activeItems.length === 0 && status === "Delivered") {
       return res.status(400).json({ success: false, message: "Cannot deliver an order with no active items" });
     }
+
+    // Update order status
     order.orderStatus = status;
     if (status === "Delivered") {
       order.deliveredAt = new Date();
     }
-    if (order.paymentMethod === "COD") {
-      order.paymentStatus = status === "Delivered" ? "Paid" : (status === "Cancelled" || status === "Returned" ? "Pending" : order.paymentStatus);
+
+    // Update payment status for Returned and Cancelled
+    if (status === "Returned") {
+      order.paymentStatus = "Refunded";
+    } else if (status === "Cancelled") {
+      order.paymentStatus = order.paymentStatus === "Paid" ? "Refunded" : "Failed";
     } else {
-      order.paymentStatus = (order.paymentId || order.razorpayOrderId) ? "Paid" : "Pending";
+      // Existing payment status logic for other statuses
+      if (order.paymentMethod === "COD") {
+        order.paymentStatus = status === "Delivered" ? "Paid" : "Pending";
+      } else {
+        order.paymentStatus = (order.paymentId || order.razorpayOrderId) ? "Paid" : "Pending";
+      }
     }
+
     await order.save();
+
     res.json({
       success: true,
       message: "Order status updated",
@@ -186,10 +278,12 @@ exports.updateStatus = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating status:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({
+      success: false,
+      message: process.env.NODE_ENV === "development" ? error.message : "Server error"
+    });
   }
 };
-
 
 exports.approveReturn = async (req, res) => {
   try {
@@ -228,17 +322,15 @@ exports.approveReturn = async (req, res) => {
       couponMinAmount= minimumPurchase
 
     }
+
     const itemSubtotal = item.price * item.quantity;
     let refundAmount = 0;
     const filteredItems = order.items.filter(item => !item.returned && !item.cancelled);
     if(filteredItems.length>=1){
       order.totalPrice - itemSubtotal > couponMinAmount ? refundAmount=itemSubtotal : refundAmount = itemSubtotal - order.couponDiscountAmount
     }else{
-      refundAmount = itemSubtotal
+      refundAmount = order.totalPrice
     }
-
-
-   
     const user = await User.findById(order.userId);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });

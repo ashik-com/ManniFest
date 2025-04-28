@@ -1006,7 +1006,7 @@ exports.orderfailed = async (req, res) => {
       const formattedDelivery = estimatedDelivery.toLocaleDateString();
 
       // Render the order success page with data
-      res.render('user/transaction-failure', {
+      res.render('user/payment-failure', {
           name: req.session.name || 'Guest', // Pass user name if available
           orderId,
           order,
@@ -1018,3 +1018,12 @@ exports.orderfailed = async (req, res) => {
   }
 }
 
+
+exports.chechCart = async (req, res) => {
+  try {
+      const cart = await Cart.findOne({ userId: req.user.id });
+      res.json({ success: true, cart: cart || { items: [] } });
+  } catch (error) {
+      res.status(500).json({ success: false, message: 'Error checking cart' });
+  }
+};

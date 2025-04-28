@@ -90,7 +90,7 @@ exports.postAddProduct = async (req, res) => {
 
     
 
-    // Process and upload images to Cloudinary
+   
     for (let item of images) {
       
 
@@ -205,7 +205,7 @@ exports.getEditProduct = async (req, res) => {
 
 exports.updateEditProduct = async (req, res) => {
   try {
-    const { name, description, category, price, isListed, status, variants } = req.body;
+    const { name, description, category, price, isListed, status, variants, removed_images } = req.body;
     const productId = req.params.id;
 
     // Validate required fields
@@ -287,12 +287,9 @@ exports.updateEditProduct = async (req, res) => {
               };
               let result;
               if (file.path) {
-                // Disk storage: upload from file path
                 result = await cloudinary.uploader.upload(file.path, uploadOptions);
-                // Delete local file
                 await fs.unlink(file.path).catch(err => console.error("Error deleting local file:", err));
               } else if (file.buffer) {
-                // Memory storage: upload from buffer
                 result = await new Promise((resolve, reject) => {
                   const stream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
                     if (error) reject(error);
@@ -312,23 +309,36 @@ exports.updateEditProduct = async (req, res) => {
           }
         }
 
-        // Handle removed images
-        let removedImages = [];
-        if (req.body[`removed_images[${index}]`]) {
-          removedImages = JSON.parse(req.body[`removed_images[${index}]`]);
-          if (Array.isArray(removedImages)) {
-            for (const image of removedImages) {
+        // Handle removed images for this variant
+        if (removed_images && Array.isArray(removed_images) && variant.id) {
+          let imagesToRemove = [];
+          // Parse removed_images if it's a JSON string
+          removed_images.forEach(item => {
+            try {
+              const parsedImages = JSON.parse(item);
+              if (Array.isArray(parsedImages)) {
+                imagesToRemove = [...imagesToRemove, ...parsedImages];
+              }
+            } catch (e) {
+              console.error("Error parsing removed_images:", e);
+            }
+          });
+
+          if (imagesToRemove.length > 0 && existingVariant) {
+            for (const image of imagesToRemove) {
               if (variantImages.includes(image)) {
                 try {
                   // Extract public_id from Cloudinary URL
                   const publicId = image.split("/").slice(-1)[0].split(".")[0];
                   await cloudinary.uploader.destroy(`products/${publicId}`);
+                  console.log(`Deleted image from Cloudinary: ${publicId}`);
                 } catch (deleteError) {
                   console.error("Cloudinary delete error:", deleteError);
                 }
               }
             }
-            variantImages = variantImages.filter(img => !removedImages.includes(img));
+            // Remove images from variantImages
+            variantImages = variantImages.filter(img => !imagesToRemove.includes(img));
           }
         }
 

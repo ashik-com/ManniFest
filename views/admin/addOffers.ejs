@@ -1,10 +1,10 @@
-<!-- views/admin/add-category-offer.ejs -->
+
 <%- include('../admin/partials/header') %>
 <div class="container-fluid">
     <div class="card">
         <div class="card-body">
             <h2>Add Offer for <%= category.name %></h2>
-            <form id="addCategoryOfferForm" >
+            <form id="addCategoryOfferForm" novalidate>
                 <input type="hidden" name="offerType" value="category">
                 <input type="hidden" name="categoryId" value="<%= category._id %>">
                 <input type="hidden" name="categoryName" value="<%= category.name %>">
@@ -15,14 +15,13 @@
                 <div class="mb-3">
                     <label for="discountType" class="form-label">Discount Type:</label>
                     <select name="discountType" id="discountType" class="form-control" required>
-                        <option value="" disabled selected>Select discount type</option>
-                        <option value="percentage">Percentage</option>
-                        <option value="fixed">Fixed Amount</option>
+                        <option value="percentage" selected>Percentage</option>
                     </select>
                 </div>
                 <div class="mb-3">
                     <label for="discountValue" class="form-label">Discount Value:</label>
-                    <input type="number" name="discountValue" id="discountValue" class="form-control" required min="0" step="0.01" placeholder="e.g., 50">
+                    <input type="number" name="discountValue" id="discountValue" class="form-control" required min="1" max="75" step="1" placeholder="e.g., 50">
+                    <div id="valueHelp" class="form-text">Enter value between 1-75</div>
                 </div>
                 <div class="mb-3">
                     <label for="startDate" class="form-label">Start Date:</label>
@@ -32,83 +31,167 @@
                     <label for="endDate" class="form-label">End Date:</label>
                     <input type="date" name="endDate" id="endDate" class="form-control" required>
                 </div>
-                <button type="submit" class="btn btn-success">Add Offer</button>
-                <a href="/admin/categories" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-success" id="submitBtn">Add Offer</button>
+                <a href="/admin/categorys" class="btn btn-secondary">Cancel</a>
             </form>
         </div>
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const form = document.getElementById('addCategoryOfferForm');
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('startDate').setAttribute('min', today);
-        document.getElementById('endDate').setAttribute('min', today);
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('addCategoryOfferForm');
+    const discountTypeSelect = document.getElementById('discountType');
+    const discountValueInput = document.getElementById('discountValue');
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    const submitBtn = document.getElementById('submitBtn');
 
-        form.addEventListener('submit', async function (e) {
-            e.preventDefault();
+    // Check if SweetAlert2 is loaded
+    if (typeof Swal === 'undefined') {
+        console.error('SweetAlert2 is not loaded. Falling back to native alerts.');
+        window.alert('Error: SweetAlert2 library failed to load. Please check your internet connection or CDN.');
+    }
 
-            // Client-side validation
-            const discountValue = parseFloat(document.getElementById('discountValue').value);
-            const startDate = new Date(document.getElementById('startDate').value);
-            const endDate = new Date(document.getElementById('endDate').value);
+    // Set minimum date to today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayFormatted = `${yyyy}-${mm}-${dd}`;
+    startDateInput.min = todayFormatted;
+    endDateInput.min = todayFormatted;
 
-            if (discountValue <= 0) {
+    // Update endDate min based on startDate
+    startDateInput.addEventListener('change', function () {
+        const startDate = this.value;
+        endDateInput.min = startDate || todayFormatted;
+    });
+
+    // Form submission with validation
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        console.log('Form submit event triggered'); // Debug statement
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Adding...';
+
+        // Validation function with SweetAlert2 or fallback
+        const showError = (title, text) => {
+            if (typeof Swal !== 'undefined') {
                 Swal.fire({
                     icon: 'error',
-                    title: 'Invalid Discount',
-                    text: 'Discount value must be greater than 0!',
+                    title: title,
+                    text: text,
                 });
-                return;
+            } else {
+                alert(`${title}: ${text}`);
             }
-            if (startDate >= endDate) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Invalid Dates',
-                    text: 'End date must be after start date!',
-                });
-                return;
-            }
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Add Offer';
+        };
 
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData);
+        // Gather input values
+        const discountType = discountTypeSelect.value;
+        const discountValue = parseFloat(discountValueInput.value) || 0;
+        const startDateValue = startDateInput.value;
+        const endDateValue = endDateInput.value;
+        const currentDate = new Date();
+        currentDate.setHours(0, 0, 0, 0);
+        const startDate = new Date(startDateValue);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(endDateValue);
+        endDate.setHours(0, 0, 0, 0);
 
-            try {
-                const response = await fetch('/admin/addcategoryoffer', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data),
-                });
+        // Discount type validation
+        if (discountType !== 'percentage') {
+            showError('Invalid Discount Type', 'Discount type must be percentage');
+            return;
+        }
 
-                const result = await response.json();
-                if (response.ok && result.success) {
+        // Discount value validation
+        if (isNaN(discountValue) || discountValue <= 0) {
+            showError('Invalid Discount Value', 'Discount value must be greater than zero');
+            return;
+        }
+
+        if (discountValue < 1 || discountValue > 75) {
+            showError('Invalid Percentage', 'Percentage discount must be between 1 and 75');
+            return;
+        }
+
+        // Start date validation
+        if (!startDateValue) {
+            showError('Invalid Start Date', 'Please select a start date');
+            return;
+        }
+
+        if (isNaN(startDate.getTime())) {
+            showError('Invalid Start Date', 'Please enter a valid start date');
+            return;
+        }
+
+        if (startDate < currentDate) {
+            showError('Invalid Start Date', 'Start date must be today or in the future');
+            return;
+        }
+
+        // End date validation
+        if (!endDateValue) {
+            showError('Invalid End Date', 'Please select an end date');
+            return;
+        }
+
+        if (isNaN(endDate.getTime())) {
+            showError('Invalid End Date', 'Please enter a valid end date');
+            return;
+        }
+
+        if (endDate <= startDate) {
+            showError('Invalid Dates', 'End date must be after start date');
+            return;
+        }
+
+        // Prepare form data
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+
+        try {
+            const response = await fetch('/admin/addcategoryoffer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'success',
                         title: 'Offer Added!',
-                        text: result.message,
+                        text: result.message || 'The category offer has been successfully added.',
+                        showConfirmButton: false,
                         timer: 1500,
-                    }).then(() => window.location.href = '/admin/categorys');
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: result.message || 'Failed to add offer',
+                    }).then(() => {
+                        window.location.href = '/admin/categories';
                     });
+                } else {
+                    alert('The category offer has been successfully added.');
+                    window.location.href = '/admin/categories';
                 }
-            } catch (error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Network Error',
-                    text: 'An error occurred while adding the offer',
-                });
+            } else {
+                showError('Error', result.message || 'Failed to add offer');
             }
-        });
-
-        // Real-time date validation
-        document.getElementById('startDate').addEventListener('change', function () {
-            document.getElementById('endDate').setAttribute('min', this.value);
-        });
+        } catch (error) {
+            console.error('Error adding offer:', error);
+            showError('Network Error', 'An error occurred while adding the offer');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Add Offer';
+        }
     });
+});
 </script>
 <%- include('../admin/partials/footer') %>

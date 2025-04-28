@@ -232,6 +232,8 @@ router.route("/validate-coupon")
 router.route("/download-invoice/:orderId")   
     .get(profileController.downloadInvoice)
 
+router.route('order-failure')
+    .get(profileController.orderFailure)    
 
 router.route('/logout')
     .post(userController.logout)

@@ -120,7 +120,7 @@
                                         <% } %>
                                     </td>
                                     <td>
-                                        <%= item.cancelled || item.returned ? `<del>${item.productName}</del>` : item.productName %>
+                                        <%= item.cancelled || item.returned ? `${item.productName}` : item.productName %>
                                     </td>
                                     <td><%= item.variantSize %>, <%= item.variantColor %></td>
                                     <td><%= item.quantity %></td>
